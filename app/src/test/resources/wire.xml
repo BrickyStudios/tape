@@ -1,0 +1,8 @@
+<rss version="2.0"><channel><title>Sample wire</title><link>https://example.com</link><description />
+<item><title>FinancialJuice: Amazon shares rise 3% after cloud revenue beats estimates
+</title><link>https://example.com/News/101/amazon.aspx?xy=rss</link><description /><pubDate>Mon, 23 Nov 2026 18:41:19 GMT</pubDate><guid isPermaLink="false">101</guid></item>
+<item><title>FinancialJuice: US 2-Year Note Auction Bid-to-Cover Actual 2.650 (Previous 2.590)</title><link>https://example.com/News/100/auction.aspx?xy=rss</link><description /><pubDate>Mon, 23 Nov 2026 18:11:21 GMT</pubDate><guid isPermaLink="false">100</guid></item>
+<item><title>Nvidia stock soars as CEO returns - Example Wire</title><link>https://example.com/nvda</link><pubDate>Mon, 23 Nov 2026 17:00:00 GMT</pubDate><source url="https://example.com">Example Wire</source></item>
+<item><title>No date, dropped</title><link>https://example.com/x</link></item>
+<item><title>Bad link, dropped</title><link>javascript:alert(1)</link><pubDate>Mon, 23 Nov 2026 17:00:00 GMT</pubDate></item>
+</channel></rss>

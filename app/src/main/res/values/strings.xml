@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name" translatable="false">Tape</string>
+
+    <string name="tab_watchlist">Watchlist</string>
+    <string name="tab_wire">Wire</string>
+    <string name="tab_setup">Setup</string>
+    <string name="checked">Checked %s</string>
+    <string name="checking">Checking</string>
+    <string name="all">All</string>
+    <string name="empty_watchlist">Add stocks under Setup and their headlines land here</string>
+    <string name="empty_news">No headlines yet. Pull down to check</string>
+
+    <string name="setup_sub">Stocks, feeds and how news reaches you</string>
+    <string name="section_stocks">Stocks</string>
+    <string name="add_hint">Symbol or company</string>
+    <string name="search">Search</string>
+    <string name="add">Add</string>
+    <string name="remove">Remove</string>
+    <string name="nothing_found">Nothing found for %s</string>
+    <string name="offline">No connection to Yahoo Finance</string>
+
+    <string name="section_feeds">Market feeds</string>
+    <string name="feed_hint">Feed address, https://</string>
+    <string name="feed_https">Feeds need an https address</string>
+    <string name="feed_bad">No headlines found at this address</string>
+
+    <string name="section_delivery">Delivery</string>
+    <string name="notifications">Notifications</string>
+    <string name="on">On</string>
+    <string name="off">Off</string>
+    <string name="exact">Exact timing</string>
+    <string name="exact_off">Off, checks can come minutes late</string>
+    <string name="battery">Battery</string>
+    <string name="battery_free">Unrestricted</string>
+    <string name="battery_limited">Optimized, Android may pause checks</string>
+    <string name="delivery_note">Tape checks the market feeds every minute on weekdays from 2:00 to 18:00 New York time and every 15 minutes otherwise. News for your stocks is searched every 5 minutes.</string>
+
+    <string name="section_about">About</string>
+    <string name="version_label">Version</string>
+    <string name="source_code">Source code</string>
+    <string name="about_note">Headlines go straight from Yahoo Finance, Google News and the feeds above to this phone. No account, no server, no ads. Tap a headline to read it at the source. Nothing here is investment advice.</string>
+
+    <string name="update_ready">Version %s is ready</string>
+    <string name="update_loading">Downloading, %d%%</string>
+    <string name="update_download_failed">Download failed</string>
+    <string name="update_install">Install</string>
+    <string name="update_later">Later</string>
+    <string name="update_none">latest version</string>
+    <string name="update_failed">GitHub not reachable</string>
+
+    <string name="channel_stocks">Your stocks</string>
+    <string name="channel_wire">Market wire</string>
+</resources>

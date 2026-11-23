@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tab_watchlist">Watchlist</string>
+    <string name="tab_wire">Ticker</string>
+    <string name="tab_setup">Einrichtung</string>
+    <string name="checked">Geprüft %s</string>
+    <string name="checking">Prüfe</string>
+    <string name="all">Alle</string>
+    <string name="empty_watchlist">Füge unter Einrichtung Aktien hinzu, dann landen ihre Meldungen hier</string>
+    <string name="empty_news">Noch keine Meldungen. Zum Prüfen nach unten ziehen</string>
+
+    <string name="setup_sub">Aktien, Feeds und wie Meldungen dich erreichen</string>
+    <string name="section_stocks">Aktien</string>
+    <string name="add_hint">Symbol oder Firma</string>
+    <string name="search">Suchen</string>
+    <string name="add">Hinzufügen</string>
+    <string name="remove">Entfernen</string>
+    <string name="nothing_found">Nichts gefunden für %s</string>
+    <string name="offline">Keine Verbindung zu Yahoo Finance</string>
+
+    <string name="section_feeds">Markt-Feeds</string>
+    <string name="feed_hint">Feed-Adresse, https://</string>
+    <string name="feed_https">Feeds brauchen eine https-Adresse</string>
+    <string name="feed_bad">Unter dieser Adresse gibt es keine Meldungen</string>
+
+    <string name="section_delivery">Zustellung</string>
+    <string name="notifications">Benachrichtigungen</string>
+    <string name="on">An</string>
+    <string name="off">Aus</string>
+    <string name="exact">Genaue Zeiten</string>
+    <string name="exact_off">Aus, Abrufe kommen teils Minuten später</string>
+    <string name="battery">Akku</string>
+    <string name="battery_free">Nicht eingeschränkt</string>
+    <string name="battery_limited">Optimiert, Android kann Abrufe pausieren</string>
+    <string name="delivery_note">Tape fragt die Markt-Feeds werktags von 2 bis 18 Uhr New Yorker Zeit jede Minute ab, sonst alle 15 Minuten. Nach News zu deinen Aktien sucht es alle 5 Minuten.</string>
+
+    <string name="section_about">Über</string>
+    <string name="version_label">Version</string>
+    <string name="source_code">Quellcode</string>
+    <string name="about_note">Die Meldungen kommen direkt von Yahoo Finance, Google News und den Feeds oben auf dieses Handy. Kein Konto, kein Server, keine Werbung. Tipp auf eine Meldung, um sie an der Quelle zu lesen. Nichts hier ist Anlageberatung.</string>
+
+    <string name="update_ready">Version %s ist bereit</string>
+    <string name="update_loading">Lädt, %d %%</string>
+    <string name="update_download_failed">Download fehlgeschlagen</string>
+    <string name="update_install">Installieren</string>
+    <string name="update_later">Später</string>
+    <string name="update_none">neueste Version</string>
+    <string name="update_failed">GitHub nicht erreichbar</string>
+
+    <string name="channel_stocks">Deine Aktien</string>
+    <string name="channel_wire">Markt-Ticker</string>
+</resources>

@@ -1,0 +1,6 @@
+{"explains":[],"count":3,"quotes":[{"exchange":"NMS","shortname":"Amazon.com, Inc.","quoteType":"EQUITY","symbol":"AMZN","longname":"Amazon.com, Inc."},{"exchange":"OPR","shortname":"AMZN Dec 2026 200 call","quoteType":"OPTION","symbol":"AMZN261218C00200000"},{"exchange":"PCX","shortname":"Roundhill AMZN WeeklyPay ETF","quoteType":"ETF","symbol":"AMZW"}],
+"news":[
+{"uuid":"a1","title":"Who is buying AI chips next year","publisher":"Example Research","link":"https://finance.yahoo.com/a1.html","providerPublishTime":1795458967,"type":"STORY","relatedTickers":["NVDA","AMZN"]},
+{"uuid":"a2","title":"Amazon expands same-day delivery","publisher":"","link":"https://finance.yahoo.com/a2.html","providerPublishTime":1795455000,"type":"STORY"},
+{"uuid":"a3","title":"","publisher":"Empty","link":"https://finance.yahoo.com/a3.html","providerPublishTime":1795455000}
+]}

@@ -34,7 +34,7 @@
     <string name="battery">Battery</string>
     <string name="battery_free">Unrestricted</string>
     <string name="battery_limited">Optimized, Android may pause checks</string>
-    <string name="delivery_note">Tape checks the market feeds every minute on weekdays from 2:00 to 18:00 New York time and every 15 minutes otherwise. News for your stocks is searched every 5 minutes.</string>
+    <string name="delivery_note">Tape checks the market feeds every minute on weekdays from 2:00 to 18:00 New York time and every 15 minutes otherwise. It searches news for your stocks every 5 minutes.</string>
 
     <string name="section_about">About</string>
     <string name="version_label">Version</string>

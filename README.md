@@ -80,7 +80,7 @@ Tape shows the headline and links to the source. It copies no articles and keeps
 - A headline that never names the company is missed, even when the article is about it.
 - No earnings or dividend calendar yet: Yahoo's endpoint for it needs a login token.
 - Symbols with one or two letters (`PG`, `GE`) only match by company name, because the letters turn up in too many abbreviations. Tape knows a few other names: `Google` for Alphabet, `P&G` for Procter & Gamble, `Facebook` for Meta.
-- English-language sources. News on European stocks is thin.
+- The sources are English-language, so news on European stocks may be sparse.
 - Nothing in Tape is investment advice.
 
 ## Build it yourself

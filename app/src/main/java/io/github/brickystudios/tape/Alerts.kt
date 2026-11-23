@@ -32,7 +32,7 @@ object Alerts {
         Kind.EARNINGS to rx("""\b(earnings|results|guidance|beats|misses|Q[1-4]|quarterly|revenue|EPS|profit warning)\b"""),
         Kind.ANALYST to rx("""\b(upgrades?|upgraded|downgrades?|downgraded)\b"""),
         Kind.DEAL to rx("""\b(acquires?|acquired|acquisition|merger|buyout|takeover|bid for)\b"""),
-        Kind.MANAGEMENT to rx("""\b(CEO|CFO|chief executive)\b.*\b(resigns?|resignation|steps? down|appoints?|appointed|named|ousted|fired|departs?|departure|returns?|succeeds?|successor)\b|\b(resigns?|steps? down|appoints?|ousted|fired|returns?|back as)\b.*\b(CEO|CFO|chief executive)\b"""),
+        Kind.MANAGEMENT to rx("""\b(CEO|CFO|chief executive)\b.*\b(resigns?|resignation|steps? down|appoints?|appointed|named|ousted|fired|departs?|departure|returns?|reinstated|reinstates|succeeds?|successor)\b|\b(resigns?|steps? down|appoints?|ousted|fired|returns?|back as|reinstated|reinstates)\b.*\b(CEO|CFO|chief executive)\b"""),
         Kind.LEGAL to rx("""\b(lawsuit|sues|sued|SEC|DOJ|FTC|FDA|probe|investigation|antitrust|subpoena|fined|recalls?|class action|indicted)\b"""),
         Kind.HALT to rx("""\b(halted|halts trading|trading halt|bankruptcy|bankrupt|chapter 11|delisted|delisting)\b"""),
         Kind.CAPITAL to rx("""\b(buybacks?|repurchase|stock split|share offering|secondary offering|dividend (cut|hike|increase|raise|suspension))\b"""),

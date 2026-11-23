@@ -20,8 +20,8 @@ import java.util.Date
 import java.util.Locale
 import kotlin.math.abs
 
-/** Signed percent the same way everywhere: "+31.5 %", "−5.2 %". */
-fun percent(change: Double): String = String.format(Locale.getDefault(), "%+.1f %%", change).replace('-', '−')
+/** Signed percent the same way everywhere, chips, pushes and Setup: "+31.5 %", "−5.2 %" with a narrow no-break space. */
+fun percent(change: Double): String = String.format(Locale.getDefault(), "%+.1f\u202F%%", change).replace('-', '−')
 
 object Notify {
     private const val PRICES = "prices"

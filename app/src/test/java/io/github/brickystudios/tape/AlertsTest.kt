@@ -27,6 +27,7 @@ class AlertsTest {
         assertEquals(Kind.DEAL, Alerts.kind("Microsoft to acquire gaming studio for \$2 billion", "Bloomberg"))
         assertEquals(Kind.MANAGEMENT, Alerts.kind("Huang returns as Nvidia CEO after board reversal", "Reuters"))
         assertEquals(Kind.MANAGEMENT, Alerts.kind("Jensen Huang Is Back As Nvidia CEO. Stock Jumps.", "IBD"))
+        assertEquals(Kind.MANAGEMENT, Alerts.kind("Event after Jensen Huang reinstated as Nvidia CEO", "FinancialJuice"))
         assertEquals(Kind.LEGAL, Alerts.kind("FTC sues Amazon over Prime cancellations", "AP"))
         assertEquals(Kind.HALT, Alerts.kind("Trading halted in shares of Example Corp", "Nasdaq"))
         assertEquals(Kind.CAPITAL, Alerts.kind("Apple announces \$110 billion buyback", "CNBC"))

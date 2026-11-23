@@ -167,7 +167,7 @@ private fun SymbolFilter(symbols: List<String>, quotes: Map<String, Quote>, sele
             Text(
                 buildAnnotatedString {
                     append(s ?: stringResource(R.string.all))
-                    if (q != null) withStyle(SpanStyle(color = if (q.change >= 0) Up else Down)) { append(" " + percent(q.change).replace(" ", "")) }
+                    if (q != null) withStyle(SpanStyle(color = if (q.change >= 0) Up else Down)) { append(" " + percent(q.change)) }
                 },
                 Modifier.clip(RoundedCornerShape(8.dp)).background(if (on) Raised else Ink).clickable { onSelect(s) }.padding(horizontal = 12.dp, vertical = 8.dp),
                 fontSize = 13.sp,

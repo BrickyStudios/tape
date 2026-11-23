@@ -141,7 +141,7 @@ fun Setup(now: Long, onFavorites: (List<Favorite>) -> Unit) {
                     Alerts.THRESHOLDS.forEach { t ->
                         val on = t == threshold
                         Text(
-                            "±$t %",
+                            "±$t\u202F%",
                             Modifier.clip(RoundedCornerShape(8.dp)).background(if (on) Raised else Ink).clickable { threshold = t; store.threshold = t }.padding(horizontal = 16.dp, vertical = 8.dp),
                             fontSize = 14.sp, fontFamily = FontFamily.Monospace, color = if (on) Text1 else Text2,
                         )
@@ -157,7 +157,7 @@ fun Setup(now: Long, onFavorites: (List<Favorite>) -> Unit) {
             }
         }
         items(words, key = { "word:" + it }) { w ->
-            Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable { saveWords(words - w) }, verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable { saveWords(words - w) }, verticalAlignment = Alignment.CenterVertically) {
                 Text(w, Modifier.weight(1f), fontSize = 16.sp, color = Text1, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(stringResource(R.string.remove), fontSize = 14.sp, color = Text3)
             }

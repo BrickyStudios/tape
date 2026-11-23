@@ -1,0 +1,6 @@
+{"spark":{"result":[
+{"symbol":"NVDA","response":[{"meta":{"currency":"USD","symbol":"NVDA","regularMarketTime":1795467601,"exchangeTimezoneName":"America/New_York","regularMarketPrice":165.05,"chartPreviousClose":125.53}}]},
+{"symbol":"SAP.DE","response":[{"meta":{"currency":"EUR","symbol":"SAP.DE","regularMarketTime":1795451960,"exchangeTimezoneName":"Europe/Berlin","regularMarketPrice":186.34,"chartPreviousClose":183.68}}]},
+{"symbol":"BROKEN","response":[{"meta":{"symbol":"BROKEN","regularMarketTime":1795451960,"regularMarketPrice":10.0,"chartPreviousClose":0}}]},
+{"symbol":"EMPTY","response":[]}
+],"error":null}}

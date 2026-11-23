@@ -88,6 +88,22 @@ object News {
         }
     }
 
+    /** Today's price and yesterday's close for up to 20 symbols in one small answer (about 1 KB per symbol). */
+    fun sparkUrl(symbols: List<String>) = "https://query2.finance.yahoo.com/v7/finance/spark?symbols=${enc(symbols.joinToString(","))}&range=1d&interval=1d"
+
+    /** Yahoo's spark answer. Unknown symbols are simply missing; a quote without a usable close is dropped. */
+    fun parseSpark(json: String): List<Quote> {
+        val results = JSONObject(json).optJSONObject("spark")?.optJSONArray("result") ?: return emptyList()
+        return (0 until results.length()).mapNotNull { i ->
+            val meta = results.getJSONObject(i).optJSONArray("response")?.optJSONObject(0)?.optJSONObject("meta") ?: return@mapNotNull null
+            val price = meta.optDouble("regularMarketPrice")
+            val close = meta.optDouble("chartPreviousClose")
+            val time = meta.optLong("regularMarketTime") * 1000
+            if (!(price > 0) || !(close > 0) || time <= 0) return@mapNotNull null
+            Quote(meta.optString("symbol"), price, close, time, meta.optString("exchangeTimezoneName", "UTC"), meta.optString("currency"))
+        }
+    }
+
     /** Stocks and funds matching what was typed, for the add field. */
     fun parseLookup(json: String): List<Favorite> {
         val quotes = JSONObject(json).optJSONArray("quotes") ?: return emptyList()
@@ -117,6 +133,9 @@ object News {
     /** Worth a notification: not on screen yet and at most [maxAge] old (feeds resend old items after a hiccup). */
     fun fresh(fetched: List<Item>, known: Set<String>, now: Long, maxAge: Long = 2 * HOUR): List<Item> =
         fetched.filter { it.id !in known && now - it.time in -5 * MINUTE..maxAge }
+
+    /** How long to leave a server alone after HTTP 429: its Retry-After seconds, else 5 minutes, between 1 and 30 minutes. */
+    fun pause(retryAfter: String?): Long = ((retryAfter?.trim()?.toLongOrNull() ?: 300L).coerceIn(60L, 1800L)) * 1000
 
     private val NEW_YORK = ZoneId.of("America/New_York")
 

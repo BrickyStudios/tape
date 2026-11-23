@@ -19,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -42,6 +43,9 @@ val Text2 = Color(0xFFA1A1A6)
 val Text3 = Color(0xFF85858B)
 val Amber = Color(0xFFF2A93B)
 val Hairline = Text1.copy(alpha = 0.08f)
+/** Price change only. Leaf green (OKLCH hue 137), clear of Nurvo's teal; 8.7:1 and 4.7:1 on Ink. */
+val Up = Color(0xFF7CC45A)
+val Down = Color(0xFFE5484D)
 
 val AppType = Typography().run { copy(bodyLarge = bodyLarge.copy(letterSpacing = 0.sp)) }
 val TitleStyle = TextStyle(fontSize = 28.sp, lineHeight = 36.sp, fontWeight = FontWeight.Medium, color = Text1)
@@ -92,10 +96,16 @@ fun HeadlineRow(item: Item, now: Long) {
         Column(Modifier.weight(1f)) {
             Text(item.title, style = HeadlineStyle, maxLines = 4, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.height(4.dp))
+            val kind = if (item.tickers.isNotEmpty()) Alerts.kind(item.title, item.source) else null
+            val kindLabel = kind?.let { stringResource(Notify.kindLabel(it)) }
             Text(
                 buildAnnotatedString {
                     if (item.tickers.isNotEmpty()) {
                         withStyle(SpanStyle(color = Text1, fontFamily = FontFamily.Monospace)) { append(item.tickers.joinToString("  ")) }
+                        append("  ·  ")
+                    }
+                    if (kindLabel != null) {
+                        withStyle(SpanStyle(color = Text1)) { append(kindLabel) }
                         append("  ·  ")
                     }
                     append(item.source)

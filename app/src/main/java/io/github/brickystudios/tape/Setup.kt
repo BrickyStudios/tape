@@ -6,7 +6,9 @@ import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -30,12 +32,14 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
@@ -61,6 +65,22 @@ fun Setup(now: Long, onFavorites: (List<Favorite>) -> Unit) {
     var lookupNote by remember { mutableStateOf<String?>(null) }
     var feedUrl by remember { mutableStateOf("") }
     var feedNote by remember { mutableStateOf<Int?>(null) }
+    var threshold by remember { mutableIntStateOf(store.threshold) }
+    var words by remember { mutableStateOf(store.words) }
+    var word by remember { mutableStateOf("") }
+    var wordNote by remember { mutableStateOf<Int?>(null) }
+    var quietNights by remember { mutableStateOf(store.quiet) }
+    var squawk by remember { mutableStateOf(store.squawk) }
+    fun saveWords(v: List<String>) { words = v; store.words = v }
+    fun addWord() {
+        val w = Alerts.cleanWord(word)
+        wordNote = when {
+            w == null -> R.string.word_bad
+            words.size >= Alerts.MAX_WORDS -> R.string.word_full
+            else -> null
+        }
+        if (w != null && wordNote == null) { if (words.none { it.equals(w, true) }) saveWords(words + w); word = "" }
+    }
     val updateNote by Updater.note.collectAsStateWithLifecycle()
     val update by Updater.state.collectAsStateWithLifecycle()
 
@@ -88,6 +108,7 @@ fun Setup(now: Long, onFavorites: (List<Favorite>) -> Unit) {
     // read again on every return to the app: the user may have changed them in Android's settings
     val notifications = remember(now) { NotificationManagerCompat.from(ctx).areNotificationsEnabled() }
     val exact = remember(now) { Tick.exact(ctx) }
+    val status = remember(now) { store.status }
     val unrestricted = remember(now) { ctx.getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(ctx.packageName) }
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 32.dp)) {
@@ -107,8 +128,49 @@ fun Setup(now: Long, onFavorites: (List<Favorite>) -> Unit) {
         items(favorites, key = { "fav:" + it.symbol }) { f ->
             Line(f.symbol, f.name, action = stringResource(R.string.remove)) {
                 saveFavorites(favorites - f)
-                store.primed = store.primed - "stock:${f.symbol}" - "google:${f.symbol}" // re-adding it later fills quietly again
+                store.primed = store.primed - "stock:${f.symbol}" - "google:${f.symbol}" - "price:${f.symbol}" // re-adding it later fills quietly again
             }
+        }
+
+        item { Section(R.string.section_alerts) }
+        item {
+            Column(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+                Text(stringResource(R.string.threshold), fontSize = 16.sp, color = Text1)
+                Text(stringResource(R.string.threshold_note, threshold), style = MetaStyle)
+                Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Alerts.THRESHOLDS.forEach { t ->
+                        val on = t == threshold
+                        Text(
+                            "±$t %",
+                            Modifier.clip(RoundedCornerShape(8.dp)).background(if (on) Raised else Ink).clickable { threshold = t; store.threshold = t }.padding(horizontal = 16.dp, vertical = 8.dp),
+                            fontSize = 14.sp, fontFamily = FontFamily.Monospace, color = if (on) Text1 else Text2,
+                        )
+                    }
+                }
+            }
+            HorizontalDivider(color = Hairline)
+        }
+        item {
+            Column(Modifier.padding(top = 8.dp)) {
+                Text(stringResource(R.string.words), fontSize = 16.sp, color = Text1)
+                Text(stringResource(R.string.words_note), style = MetaStyle)
+            }
+        }
+        items(words, key = { "word:" + it }) { w ->
+            Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable { saveWords(words - w) }, verticalAlignment = Alignment.CenterVertically) {
+                Text(w, Modifier.weight(1f), fontSize = 16.sp, color = Text1, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(stringResource(R.string.remove), fontSize = 14.sp, color = Text3)
+            }
+            HorizontalDivider(color = Hairline)
+        }
+        item { Field(word, { word = it }, R.string.word_hint, R.string.add, KeyboardType.Text) { addWord() } }
+        wordNote?.let { item { Note(stringResource(it)) } }
+        if (words != Alerts.DEFAULT_WORDS) item { Status(R.string.words_restore, stringResource(R.string.words_restore_note)) { saveWords(Alerts.DEFAULT_WORDS) } }
+        item {
+            Toggle(R.string.quiet, stringResource(R.string.quiet_note), quietNights) { quietNights = it; store.quiet = it }
+        }
+        item {
+            Toggle(R.string.squawk, stringResource(R.string.squawk_note), squawk) { squawk = it; store.squawk = it }
         }
 
         item { Section(R.string.section_feeds) }
@@ -152,6 +214,22 @@ fun Setup(now: Long, onFavorites: (List<Favorite>) -> Unit) {
         }
         item { Note(stringResource(R.string.delivery_note)) }
 
+        item { Section(R.string.section_sources) }
+        // one line per feed plus Yahoo news, Google News and prices; a failing source shows its error here
+        val names = feeds.filter { it.on }.map { it.name } + listOf("Yahoo Finance news", "Google News", Wire.PRICES)
+        items(names.filter { it in status }, key = { "status:" + it }) { name ->
+            val c = status.getValue(name)
+            val time = clock(ctx, c.time, now)
+            Column(Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(vertical = 8.dp)) {
+                Text(name, fontSize = 16.sp, color = Text1)
+                Text(
+                    if (c.error == null) stringResource(R.string.source_ok, time) else stringResource(R.string.source_error, time, c.error),
+                    style = MetaStyle.copy(color = if (c.error == null) Text2 else Down), maxLines = 2, overflow = TextOverflow.Ellipsis,
+                )
+            }
+            HorizontalDivider(color = Hairline)
+        }
+
         item { Section(R.string.section_about) }
         item {
             val u = update
@@ -183,6 +261,22 @@ private fun Line(symbol: String, name: String, action: String, accent: Boolean =
         Text(name, Modifier.weight(1f), fontSize = 16.sp, color = Text2, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Spacer(Modifier.width(12.dp))
         Text(action, fontSize = 14.sp, color = if (accent) Text1 else Text3)
+    }
+    HorizontalDivider(color = Hairline)
+}
+
+@Composable
+private fun Toggle(label: Int, note: String, on: Boolean, onChange: (Boolean) -> Unit) {
+    Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable { onChange(!on) }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(stringResource(label), fontSize = 16.sp, color = Text1)
+            Text(note, style = MetaStyle)
+        }
+        Spacer(Modifier.width(12.dp))
+        Switch(
+            checked = on, onCheckedChange = onChange,
+            colors = SwitchDefaults.colors(checkedTrackColor = Amber, checkedThumbColor = Ink, uncheckedTrackColor = Raised, uncheckedThumbColor = Text3, uncheckedBorderColor = Hairline),
+        )
     }
     HorizontalDivider(color = Hairline)
 }

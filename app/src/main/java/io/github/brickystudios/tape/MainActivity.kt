@@ -38,6 +38,7 @@ import androidx.compose.runtime.MutableIntState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -47,7 +48,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -91,19 +95,29 @@ private fun App(tab: MutableIntState) {
     val items by Wire.items.collectAsStateWithLifecycle()
     val checked by Wire.lastCheck.collectAsStateWithLifecycle()
     val checking by Wire.checking.collectAsStateWithLifecycle()
+    val quotes by Wire.quotes.collectAsStateWithLifecycle()
+    val store = remember { Store(ctx) }
+    val seen = remember { mutableStateListOf(store.seen(0), store.seen(1)) }
+    fun markSeen(t: Int) { if (t < 2) { val n = System.currentTimeMillis(); seen[t] = n; store.seen(t, n) } }
     var favorites by remember { mutableStateOf(Store(ctx).favorites) }
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var pulled by remember { mutableStateOf(false) }
 
     LifecycleResumeEffect(Unit) {
         now = System.currentTimeMillis()
-        val job = scope.launch { Wire.check(ctx) }
-        onPauseOrDispose { job.cancel() }
+        val job = scope.launch { Squawk.say(ctx, Wire.check(ctx)) }
+        onPauseOrDispose { job.cancel(); markSeen(tab.intValue) }
     }
+    // leaving a tab marks what was on it as seen, so its count starts again from zero
+    var shownTab by remember { mutableIntStateOf(tab.intValue) }
+    LaunchedEffect(tab.intValue) { markSeen(shownTab); shownTab = tab.intValue }
     LaunchedEffect(Unit) { while (true) { delay(30_000); now = System.currentTimeMillis() } } // clocks turn from amber to grey
-    fun refresh() = scope.launch { pulled = true; Wire.check(ctx, stocksNow = true); pulled = false }
+    fun refresh() = scope.launch { pulled = true; val say = Wire.check(ctx, stocksNow = true); pulled = false; Squawk.say(ctx, say) }
 
     val all = items.orEmpty()
+    val watchlist = all.map { News.tag(it, favorites) }.filter { it.tickers.isNotEmpty() }
+    val wire = all.filter { it.wire }.map { News.tag(it, favorites) }
+    val counts = listOf(Alerts.newCount(watchlist, seen[0]), Alerts.newCount(wire, seen[1]), 0)
     Column(Modifier.fillMaxSize()) {
         UpdateBanner()
         Box(Modifier.weight(1f).padding(horizontal = 20.dp)) {
@@ -111,19 +125,19 @@ private fun App(tab: MutableIntState) {
             when (tab.intValue) {
                 0 -> {
                     var only by remember { mutableStateOf<String?>(null) }
-                    val mine = all.map { News.tag(it, favorites) }.filter { it.tickers.isNotEmpty() && (only == null || only in it.tickers) }
+                    val mine = watchlist.filter { only == null || only in it.tickers }
                     Timeline(stringResource(R.string.tab_watchlist), sub, mine, now, pulled, { refresh() },
                         empty = stringResource(if (favorites.isEmpty()) R.string.empty_watchlist else R.string.empty_news)) {
-                        if (favorites.size > 1) SymbolFilter(favorites.map { it.symbol }, only) { only = it }
+                        if (favorites.isNotEmpty()) SymbolFilter(favorites.map { it.symbol }, quotes.associateBy { it.symbol }, only) { only = it }
                     }
                 }
-                1 -> Timeline(stringResource(R.string.tab_wire), sub, all.filter { it.wire }.map { News.tag(it, favorites) }, now, pulled, { refresh() },
+                1 -> Timeline(stringResource(R.string.tab_wire), sub, wire, now, pulled, { refresh() },
                     empty = stringResource(R.string.empty_news))
                 else -> Setup(now, onFavorites = { favorites = it })
             }
         }
         HorizontalDivider(color = Hairline)
-        TabBar(tab)
+        TabBar(tab, counts)
     }
 }
 
@@ -143,14 +157,18 @@ private fun Timeline(
     }
 }
 
-/** All, AMZN, MSFT, ...: one stock at a time. */
+/** All, AMZN +1.2 %, MSFT −0.4 %, ...: one stock at a time, with today's move against yesterday's close. */
 @Composable
-private fun SymbolFilter(symbols: List<String>, selected: String?, onSelect: (String?) -> Unit) {
+private fun SymbolFilter(symbols: List<String>, quotes: Map<String, Quote>, selected: String?, onSelect: (String?) -> Unit) {
     Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         (listOf<String?>(null) + symbols).forEach { s ->
             val on = s == selected
+            val q = s?.let { quotes[it] }
             Text(
-                s ?: stringResource(R.string.all),
+                buildAnnotatedString {
+                    append(s ?: stringResource(R.string.all))
+                    if (q != null) withStyle(SpanStyle(color = if (q.change >= 0) Up else Down)) { append(" " + percent(q.change).replace(" ", "")) }
+                },
                 Modifier.clip(RoundedCornerShape(8.dp)).background(if (on) Raised else Ink).clickable { onSelect(s) }.padding(horizontal = 12.dp, vertical = 8.dp),
                 fontSize = 13.sp,
                 fontFamily = if (s == null) FontFamily.Default else FontFamily.Monospace,
@@ -160,13 +178,21 @@ private fun SymbolFilter(symbols: List<String>, selected: String?, onSelect: (St
     }
 }
 
+/** Three tabs; one that is not open shows how many headlines came since you last looked, in amber like a fresh clock. */
 @Composable
-private fun TabBar(tab: MutableIntState) {
+private fun TabBar(tab: MutableIntState, counts: List<Int>) {
     Row(Modifier.fillMaxWidth().height(56.dp)) {
         listOf(R.string.tab_watchlist, R.string.tab_wire, R.string.tab_setup).forEachIndexed { i, label ->
             val on = tab.intValue == i
+            val count = if (on) 0 else counts.getOrElse(i) { 0 }
             Box(Modifier.weight(1f).fillMaxSize().clickable { tab.intValue = i }, contentAlignment = Alignment.Center) {
-                Text(stringResource(label), fontSize = 14.sp, fontWeight = if (on) FontWeight.Medium else FontWeight.Normal, color = if (on) Text1 else Text3)
+                Text(
+                    buildAnnotatedString {
+                        append(stringResource(label))
+                        if (count > 0) withStyle(SpanStyle(color = Amber, fontFamily = FontFamily.Monospace)) { append("  " + if (count > 99) "99+" else count.toString()) }
+                    },
+                    fontSize = 14.sp, fontWeight = if (on) FontWeight.Medium else FontWeight.Normal, color = if (on) Text1 else Text3,
+                )
             }
         }
     }

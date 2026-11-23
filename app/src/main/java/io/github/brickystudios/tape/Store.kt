@@ -4,6 +4,8 @@ import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
 
+data class Check(val time: Long, val error: String?)
+
 /** Everything Tape keeps, in one SharedPreferences file that never leaves the phone (no backup, see data_extraction_rules). */
 class Store(ctx: Context) {
     private val p = ctx.getSharedPreferences("tape", Context.MODE_PRIVATE)
@@ -38,6 +40,44 @@ class Store(ctx: Context) {
     var lastCheck: Long
         get() = p.getLong("lastCheck", 0)
         set(v) = p.edit().putLong("lastCheck", v).apply()
+
+    /** Last prices for the chips; kept when a check fails. */
+    var quotes: List<Quote>
+        get() = array("quotes").map { Quote(it.getString("s"), it.getDouble("p"), it.getDouble("c"), it.getLong("t"), it.optString("z", "UTC"), it.optString("cur")) }
+        set(v) = put("quotes", v.map { JSONObject().put("s", it.symbol).put("p", it.price).put("c", it.previousClose).put("t", it.time).put("z", it.zone).put("cur", it.currency) })
+
+    /** Highest price step that rang, by [Alerts.stepKey]. */
+    var rung: Map<String, Int>
+        get() = runCatching { JSONObject(p.getString("rung", "{}")!!) }.getOrDefault(JSONObject()).let { o -> o.keys().asSequence().associateWith { o.getInt(it) } }
+        set(v) = p.edit().putString("rung", JSONObject(v).toString()).apply()
+
+    var threshold: Int
+        get() = p.getInt("threshold", Alerts.DEFAULT_THRESHOLD)
+        set(v) = p.edit().putInt("threshold", v).apply()
+
+    var words: List<String>
+        get() = if (!p.contains("words")) Alerts.DEFAULT_WORDS
+        else runCatching { JSONArray(p.getString("words", "[]")) }.getOrDefault(JSONArray()).let { a -> (0 until a.length()).map(a::getString) }
+        set(v) = p.edit().putString("words", JSONArray(v).toString()).apply()
+
+    var quiet: Boolean
+        get() = p.getBoolean("quiet", true)
+        set(v) = p.edit().putBoolean("quiet", v).apply()
+
+    var squawk: Boolean
+        get() = p.getBoolean("squawk", false)
+        set(v) = p.edit().putBoolean("squawk", v).apply()
+
+    /** When a tab was last open, for its "new" count. */
+    fun seen(tab: Int) = p.getLong("seen$tab", 0)
+    fun seen(tab: Int, time: Long) = p.edit().putLong("seen$tab", time).apply()
+
+    /** Each source's last result, shown under Setup: null error means it worked. */
+    var status: Map<String, Check>
+        get() = runCatching { JSONObject(p.getString("status", "{}")!!) }.getOrDefault(JSONObject()).let { o ->
+            o.keys().asSequence().associateWith { k -> o.getJSONObject(k).let { Check(it.getLong("t"), it.optString("e").ifEmpty { null }) } }
+        }
+        set(v) = p.edit().putString("status", JSONObject(v.mapValues { (_, c) -> JSONObject().put("t", c.time).put("e", c.error ?: "") }).toString()).apply()
 
     private fun array(key: String): List<JSONObject> {
         val a = runCatching { JSONArray(p.getString(key, "[]")) }.getOrDefault(JSONArray())

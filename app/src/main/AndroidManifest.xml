@@ -5,8 +5,10 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Headlines about the watchlist. Asked for on first start, Android 13+. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <!-- One check per minute on weekdays. Without "Alarms & reminders" Android may hold a check back for minutes. -->
-    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <!-- One check per minute on weekdays. Android 13+ grants USE_EXACT_ALARM at install; Android 12 asks for "Alarms & reminders".
+         Play Store policy reserves USE_EXACT_ALARM for alarm and calendar apps; Tape ships through GitHub and F-Droid repos only. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <!-- Start the clock again after a reboot. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- Only to offer "don't put Tape to sleep" in Setup; the user decides in Android's dialog. -->

@@ -51,4 +51,35 @@
 
     <string name="channel_stocks">Your stocks</string>
     <string name="channel_wire">Market wire</string>
+
+    <string name="channel_prices">Price moves</string>
+    <string name="channel_market">Market alerts</string>
+    <string name="price_text">%1$s %2$s · previous close %3$s</string>
+    <string name="kind_earnings">Earnings</string>
+    <string name="kind_analyst">Analyst rating</string>
+    <string name="kind_deal">Deal</string>
+    <string name="kind_management">Management</string>
+    <string name="kind_legal">Legal</string>
+    <string name="kind_halt">Trading halt</string>
+    <string name="kind_capital">Buyback or dividend</string>
+    <string name="kind_move">Big move</string>
+    <string name="kind_release">Press release</string>
+
+    <string name="section_alerts">Alerts</string>
+    <string name="threshold">Price moves</string>
+    <string name="threshold_note">A push at ±%1$d %% against yesterday\'s close, and again at each further step, once a day</string>
+    <string name="words">Alert words</string>
+    <string name="words_note">Headlines with these words ring even when they name none of your stocks. Stock headlines ring for earnings, ratings, deals, management changes, legal news, halts, buybacks and press releases</string>
+    <string name="word_hint">Add a word</string>
+    <string name="word_bad">Words need 2 to 40 characters</string>
+    <string name="word_full">30 words at most</string>
+    <string name="words_restore">Restore default words</string>
+    <string name="words_restore_note">FOMC, Rate Decision, CPI, PCE, Nonfarm Payrolls, GDP, ECB, Tariff, Recession, Circuit Breaker</string>
+    <string name="quiet">Quiet at night</string>
+    <string name="quiet_note">From 22:00 to 07:00 phone time, alerts arrive without sound</string>
+    <string name="squawk">Read alerts aloud</string>
+    <string name="squawk_note">Up to 3 alerts per check, in English, never at night</string>
+    <string name="section_sources">Sources</string>
+    <string name="source_ok">Works, checked %s</string>
+    <string name="source_error">Failed at %1$s: %2$s</string>
 </resources>

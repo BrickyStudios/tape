@@ -115,6 +115,14 @@ class NewsTest {
         assertEquals(at("2026-11-28T15:15:00Z"), News.nextCheck(at("2026-11-28T15:00:00Z")))
     }
 
+    @Test fun `after HTTP 429 a server rests for its Retry-After, 5 minutes by default, 1 to 30 minutes`() {
+        assertEquals(300_000L, News.pause(null))
+        assertEquals(120_000L, News.pause(" 120 "))
+        assertEquals(60_000L, News.pause("5"))
+        assertEquals(1_800_000L, News.pause("86400"))
+        assertEquals(300_000L, News.pause("Wed, 21 Oct 2026 07:28:00 GMT")) // date form: default
+    }
+
     @Test fun `release versions compare by number`() {
         assertTrue(Releases.isNewer("v0.10.0", "0.9.2"))
         assertFalse(Releases.isNewer("v0.1.0", "0.1.0"))

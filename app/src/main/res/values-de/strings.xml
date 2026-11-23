@@ -49,4 +49,35 @@
 
     <string name="channel_stocks">Deine Aktien</string>
     <string name="channel_wire">Markt-Ticker</string>
+
+    <string name="channel_prices">Kursbewegungen</string>
+    <string name="channel_market">Markt-Alarme</string>
+    <string name="price_text">%1$s %2$s · Vortag %3$s</string>
+    <string name="kind_earnings">Quartalszahlen</string>
+    <string name="kind_analyst">Analystenurteil</string>
+    <string name="kind_deal">Übernahme</string>
+    <string name="kind_management">Führungswechsel</string>
+    <string name="kind_legal">Recht und Behörden</string>
+    <string name="kind_halt">Handelsstopp</string>
+    <string name="kind_capital">Rückkauf oder Dividende</string>
+    <string name="kind_move">Starke Bewegung</string>
+    <string name="kind_release">Pressemitteilung</string>
+
+    <string name="section_alerts">Alarme</string>
+    <string name="threshold">Kursbewegungen</string>
+    <string name="threshold_note">Push bei ±%1$d %% gegenüber dem Vortag und bei jeder weiteren Stufe, einmal am Tag</string>
+    <string name="words">Alarmwörter</string>
+    <string name="words_note">Schlagzeilen mit diesen Wörtern klingeln, auch wenn sie keine deiner Aktien nennen. Aktien-Meldungen klingeln bei Zahlen, Analystenurteilen, Übernahmen, Führungswechseln, Recht, Handelsstopps, Rückkäufen und Pressemitteilungen</string>
+    <string name="word_hint">Wort hinzufügen</string>
+    <string name="word_bad">Wörter brauchen 2 bis 40 Zeichen</string>
+    <string name="word_full">Höchstens 30 Wörter</string>
+    <string name="words_restore">Standardwörter wiederherstellen</string>
+    <string name="words_restore_note">FOMC, Rate Decision, CPI, PCE, Nonfarm Payrolls, GDP, ECB, Tariff, Recession, Circuit Breaker</string>
+    <string name="quiet">Nachtruhe</string>
+    <string name="quiet_note">Von 22 bis 7 Uhr Handyzeit kommen Alarme ohne Ton</string>
+    <string name="squawk">Alarme vorlesen</string>
+    <string name="squawk_note">Bis zu 3 Alarme pro Abruf, auf Englisch, nie nachts</string>
+    <string name="section_sources">Quellen</string>
+    <string name="source_ok">Läuft, geprüft %s</string>
+    <string name="source_error">Fehler um %1$s: %2$s</string>
 </resources>

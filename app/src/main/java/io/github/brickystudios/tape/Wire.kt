@@ -40,6 +40,8 @@ object Wire {
     /** null until read from the store */
     val items = MutableStateFlow<List<Item>?>(null)
     val quotes = MutableStateFlow<List<Quote>>(emptyList())
+    val market = MutableStateFlow<List<Quote>>(emptyList())
+    val points = MutableStateFlow<Map<String, List<Double>>>(emptyMap())
     val lastCheck = MutableStateFlow(0L)
     val checking = MutableStateFlow(false)
     private val lock = Mutex()
@@ -49,6 +51,8 @@ object Wire {
         val s = Store(ctx)
         items.value = s.items
         quotes.value = s.quotes
+        market.value = s.market
+        points.value = s.points
         lastCheck.value = s.lastCheck
     }
 
@@ -85,10 +89,16 @@ object Wire {
             }
         }
         val perStock = if (stocks) favorites.map { f -> async { stockNews(f) } } else emptyList()
-        val prices = if (favorites.isEmpty()) null
-        else async { runCatching { favorites.chunked(20).flatMap { c -> News.parseSpark(get(News.sparkUrl(c.map { it.symbol }))) } } }
+        // one price request for your stocks and the market rows, the small day lines every 5 minutes with the stock news
+        val symbols = (favorites.map { it.symbol } + MARKET).distinct()
+        val prices = async { runCatching { symbols.chunked(20).flatMap { c -> News.parseSpark(get(News.sparkUrl(c))) } } }
+        val lines = if (stocks) async { runCatching { symbols.chunked(20).fold(emptyMap<String, List<Double>>()) { m, c -> m + Market.parsePoints(get(Market.pointsUrl(c))) } } } else null
         val answers = (feeds + perStock).awaitAll()
-        val priced = prices?.await()
+        val all = prices.await()
+        val fav = favorites.mapTo(HashSet()) { it.symbol }
+        val priced = if (favorites.isEmpty()) null else all.map { q -> q.filter { it.symbol in fav } }
+        val marketGot = all.getOrNull()?.filter { it.symbol in MARKET }
+        val linesGot = lines?.await()?.getOrNull()
         if (stocks) store.lastStocks = now
 
         val status = store.status.toMutableMap()
@@ -96,7 +106,7 @@ object Wire {
             val failed = results.filterNotNull()
             status[name] = Check(now, failed.firstOrNull()?.let { if (results.size > 1) "$it (${failed.size} of ${results.size})" else it })
         }
-        priced?.let { status[PRICES] = Check(now, it.exceptionOrNull()?.let(::reason)) }
+        status[PRICES] = Check(now, all.exceptionOrNull()?.let(::reason))
         for ((name, c) in status) if (c.time == now && c.error != null) Log.w("Tape", "$name: ${c.error}")
 
         val old = store.items
@@ -123,6 +133,8 @@ object Wire {
 
         store.items = merged
         store.quotes = shown
+        if (!marketGot.isNullOrEmpty()) { store.market = marketGot; market.value = marketGot }
+        if (!linesGot.isNullOrEmpty()) { store.points = linesGot; points.value = linesGot }
         store.primed = primed
         store.status = status
         store.lastCheck = now
@@ -145,6 +157,16 @@ object Wire {
         yahoo.getOrNull()?.takeIf { it.isNotEmpty() }?.let { return Answer("stock:" + f.symbol, it, listOf(yahooCheck)) }
         val google = runCatching { News.parseRss(get(News.googleUrl(f)), GOOGLE) }
         return Answer("google:" + f.symbol, google.getOrNull()?.map { it.copy(wire = false) }, listOf(yahooCheck, GOOGLE to google.exceptionOrNull()?.let(::reason)))
+    }
+
+    private val charts = ConcurrentHashMap<String, Pair<Long, Chart>>()
+
+    /** The detail page's chart, at most one request per stock and range every 5 minutes. */
+    suspend fun chart(symbol: String, range: Range): Result<Chart> = withContext(Dispatchers.IO) {
+        val key = "$symbol|$range"
+        charts[key]?.takeIf { System.currentTimeMillis() - it.first < 5 * MINUTE }?.let { return@withContext Result.success(it.second) }
+        runCatching { Market.parseChart(get(Market.chartUrl(symbol, range))) ?: throw IOException("no chart data") }
+            .onSuccess { charts[key] = System.currentTimeMillis() to it }
     }
 
     suspend fun lookup(query: String): Result<List<Favorite>> = withContext(Dispatchers.IO) {

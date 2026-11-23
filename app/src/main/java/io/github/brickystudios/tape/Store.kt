@@ -43,8 +43,24 @@ class Store(ctx: Context) {
 
     /** Last prices for the chips; kept when a check fails. */
     var quotes: List<Quote>
-        get() = array("quotes").map { Quote(it.getString("s"), it.getDouble("p"), it.getDouble("c"), it.getLong("t"), it.optString("z", "UTC"), it.optString("cur")) }
-        set(v) = put("quotes", v.map { JSONObject().put("s", it.symbol).put("p", it.price).put("c", it.previousClose).put("t", it.time).put("z", it.zone).put("cur", it.currency) })
+        get() = quotesAt("quotes")
+        set(v) = putQuotes("quotes", v)
+
+    private fun quotesAt(key: String) = array(key).map { Quote(it.getString("s"), it.getDouble("p"), it.getDouble("c"), it.getLong("t"), it.optString("z", "UTC"), it.optString("cur")) }
+    private fun putQuotes(key: String, v: List<Quote>) =
+        put(key, v.map { JSONObject().put("s", it.symbol).put("p", it.price).put("c", it.previousClose).put("t", it.time).put("z", it.zone).put("cur", it.currency) })
+
+    /** Market overview prices (indices, gold, oil, bitcoin, euro), kept when a check fails. */
+    var market: List<Quote>
+        get() = quotesAt("market")
+        set(v) = putQuotes("market", v)
+
+    /** Today's 5-minute closes per symbol, for the small lines next to each row. */
+    var points: Map<String, List<Double>>
+        get() = runCatching { JSONObject(p.getString("points", "{}")!!) }.getOrDefault(JSONObject()).let { o ->
+            o.keys().asSequence().associateWith { k -> o.getJSONArray(k).let { a -> (0 until a.length()).map(a::getDouble) } }
+        }
+        set(v) = p.edit().putString("points", JSONObject(v.mapValues { JSONArray(it.value) }).toString()).apply()
 
     /** Highest price step that rang, by [Alerts.stepKey]. */
     var rung: Map<String, Int>

@@ -1,6 +1,6 @@
-<h1 align="center">Tape: breaking market news for your watchlist (Android, open source)</h1>
+<h1 align="center">Tape: stock prices and the news that moves them (Android, open source)</h1>
 
-<p align="center"><strong>Pick your stocks and get a push when one moves 5 % or reports earnings, a deal or a management change. Fed decisions and inflation data ring too, and a live market wire sits one tab over. Headlines go straight from Yahoo Finance, Google News and FinancialJuice to your phone. No ads, no account, no server. Free, open source, English and German.</strong></p>
+<p align="center"><strong>Your stocks with price, today's line and change, a detail page with chart and a plain-language note on what the latest news means, and the market at a glance. A push comes when a stock moves 5 % or reports earnings, a deal or a management change. Fed decisions and inflation data ring too, and a live market wire sits one tab over. Headlines go straight from Yahoo Finance, Google News and FinancialJuice to your phone. No ads, no account, no server. Free, open source, English and German.</strong></p>
 
 <p align="center">
   <a href="https://kotlinlang.org/"><img alt="Made with Kotlin" src="https://img.shields.io/badge/made_with-Kotlin-121212?style=for-the-badge&logo=kotlin&logoColor=F2A93B"></a>
@@ -17,9 +17,10 @@
 </p>
 
 <p align="center">
-  <img src="docs/bilder/1-watchlist.png" width="250" alt="Watchlist: headlines that name the stocks you follow, newest first, with an amber clock on those under 10 minutes old">
-  <img src="docs/bilder/2-wire.png" width="250" alt="Wire: market headlines from FinancialJuice as they come in">
-  <img src="docs/bilder/3-setup.png" width="250" alt="Setup: alert words for market headlines, quiet hours at night and reading alerts aloud">
+  <img src="docs/bilder/1-watchlist.png" width="200" alt="Watchlist: each stock with price, today's line and a green or red change tag, then the important headlines of the day">
+  <img src="docs/bilder/2-detail.png" width="200" alt="Detail page: price, one-day chart with yesterday's close dashed, day range, 52 weeks, volume and an assessment of the latest event">
+  <img src="docs/bilder/3-market.png" width="200" alt="Market: S&amp;P 500, Nasdaq, Dow Jones, DAX, gold, oil, bitcoin and EUR/USD with today's line, then the news ticker">
+  <img src="docs/bilder/4-setup.png" width="200" alt="Setup: alert words for market headlines, quiet hours at night and reading alerts aloud">
 </p>
 
 <p align="center">
@@ -32,7 +33,7 @@
   <a href="#auf-deutsch">Deutsch</a>
 </p>
 
-Tape keeps two lists. **Watchlist** shows headlines that name one of your stocks, with today's move next to each symbol. **Wire** shows the market headlines as they come in. Three things ring: a price move past your threshold, an event about one of your stocks, or a market headline with one of your alert words.
+**Watchlist** shows each of your stocks with price, today's line and change, then the day's important headlines about them. Tap a stock for its **detail page**: chart over 1 day to 1 year (hold a finger on it to read any point), day range, 52 weeks, volume, an **assessment** that says in one sentence what the latest event means, and all its news. **Market** shows the S&P 500, Nasdaq, Dow Jones, DAX, gold, oil, bitcoin and EUR/USD, then the news ticker. Three things ring: a price move past your threshold, an event about one of your stocks, or a market headline with one of your alert words.
 
 ## Install
 
@@ -61,10 +62,12 @@ On Android 13 and newer, checks on the minute work out of the box. On Android 12
 | Yahoo Finance search | News per stock, stock lookup | Unofficial endpoint, can change or refuse at any time |
 | Yahoo Finance spark | Today's price and yesterday's close | Unofficial endpoint, regular session only, one request per 20 stocks |
 | Google News RSS | News per stock when Yahoo fails | |
+| Yahoo Finance chart | Detail page chart and day figures | Unofficial endpoint, loaded when you open a stock, kept 5 minutes |
 | FinancialJuice RSS | Market wire | On by default, switch it off under Setup |
+| Bloomberg RSS | Market wire | Bloomberg's public headline feed; articles open on bloomberg.com |
 | Any RSS feed | Market wire | Add an https address under Setup |
 
-Tape shows the headline and links to the source. It copies no articles and keeps no archive beyond the last 600 headlines on your phone. Tape is not affiliated with Yahoo, Google or FinancialJuice.
+Tape shows the headline and links to the source. It copies no articles and keeps no archive beyond the last 600 headlines on your phone. Tape is not affiliated with Yahoo, Google, FinancialJuice or Bloomberg.
 
 ## Privacy
 
@@ -76,6 +79,7 @@ Tape shows the headline and links to the source. It copies no articles and keeps
 ## Limits
 
 - Fixed market hours, no exchange holidays. Price alerts cover the regular session, not pre- or after-market trading.
+- The assessment ("rather positive", "rather negative") reads keywords in the headline. It is a reading aid, not a forecast.
 - Event detection uses English keyword lists. An unusually worded headline can slip through quietly; it still shows in the list.
 - A headline that never names the company is missed, even when the article is about it.
 - No earnings or dividend calendar yet: Yahoo's endpoint for it needs a login token.
@@ -95,7 +99,7 @@ The tests in `app/src/test` cover parsing, matching, event detection, price step
 
 ## Auf Deutsch
 
-Tape zeigt Börsen-News zu deinen Aktien und einen Live-Ticker mit Marktmeldungen, ohne Werbung, ohne Konto, ohne Server. Eine Meldung zählt für eine Aktie, wenn die Schlagzeile Firma oder Symbol nennt. Laut wird es nur bei einer Kursbewegung ab ±5 % (einstellbar), bei Ereignissen wie Quartalszahlen, Übernahmen oder Führungswechseln und bei Marktmeldungen mit deinen Alarmwörtern, etwa Fed-Zinsentscheid oder Inflationsdaten. Nachts kommen Alarme ohne Ton. Die App ist auf Deutsch und Englisch, Download über [Tape.apk](https://github.com/BrickyStudios/tape/releases/latest/download/Tape.apk). Keine Anlageberatung.
+Tape zeigt deine Aktien mit Kurs, Tagesverlauf und Änderung, pro Aktie eine Detailseite mit Chart und einer Einordnung der letzten Meldung in einem Satz, dazu Indizes, Gold, Öl, Bitcoin und EUR/USD und einen Live-Ticker. Ohne Werbung, ohne Konto, ohne Server. Eine Meldung zählt für eine Aktie, wenn die Schlagzeile Firma oder Symbol nennt. Laut wird es nur bei einer Kursbewegung ab ±5 % (einstellbar), bei Ereignissen wie Quartalszahlen, Übernahmen oder Führungswechseln und bei Marktmeldungen mit deinen Alarmwörtern, etwa Fed-Zinsentscheid oder Inflationsdaten. Nachts kommen Alarme ohne Ton. Die App ist auf Deutsch und Englisch, Download über [Tape.apk](https://github.com/BrickyStudios/tape/releases/latest/download/Tape.apk). Keine Anlageberatung.
 
 ## License
 

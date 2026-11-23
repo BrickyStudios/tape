@@ -68,6 +68,19 @@ object Alerts {
         return events to market
     }
 
+    private val GOOD = rx("""\b(beats?|tops estimates|raises (guidance|forecast|outlook|dividend)|upgrades?|upgraded|record (revenue|profit|sales|high)|approv(al|es|ed)|wins|soars?|soared|surges?|surged|jumps?|jumped|rall(y|ies|ied)|skyrockets?|buybacks?)\b""")
+    private val BAD = rx("""\b(misses|missed|cuts (guidance|forecast|outlook|dividend|jobs)|downgrades?|downgraded|plunges?|plunged|tumbles?|tumbled|falls?|fell|sinks|sank|drops?|dropped|slumps?|lawsuit|sues|sued|probe|investigation|recalls?|halted|bankrupt\w*|resigns?|warns|warning|layoffs?|fraud|crash(es|ed)?|plummets?|plummeted)\b""")
+
+    /**
+     * Rough reading of a stock headline: 1 rather good, -1 rather bad, 0 unclear. Shown as "▲ rather positive" next to the event,
+     * never as advice. Mixed headlines ("beats estimates but cuts outlook") come out unclear.
+     */
+    fun tone(title: String): Int {
+        val good = GOOD.findAll(title).count()
+        val bad = BAD.findAll(title).count()
+        return Integer.signum(good - bad)
+    }
+
     /** The first alert word in a headline, as whole words in any case. */
     fun alertWord(title: String, words: List<String>): String? = words.firstOrNull { w ->
         w.isNotBlank() && Regex("(?<![A-Za-z0-9])${Regex.escape(w.trim())}(?![A-Za-z0-9])", RegexOption.IGNORE_CASE).containsMatchIn(title)

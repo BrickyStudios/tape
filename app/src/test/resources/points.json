@@ -1,0 +1,5 @@
+{"spark":{"result":[
+{"symbol":"^GSPC","response":[{"meta":{"symbol":"^GSPC"},"indicators":{"quote":[{"close":[7100.5,null,7180.2,7237.17]}]}}]},
+{"symbol":"ONE","response":[{"meta":{"symbol":"ONE"},"indicators":{"quote":[{"close":[1.0]}]}}]},
+{"symbol":"NONE","response":[]}
+],"error":null}}

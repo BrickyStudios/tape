@@ -45,7 +45,9 @@ data class Feed(val name: String, val url: String, val on: Boolean = true)
 /** Everything about headlines that needs no phone: URLs, parsing, matching, timing. Tested in NewsTest. */
 object News {
     const val FINANCIAL_JUICE = "https://www.financialjuice.com/feed.ashx?xy=rss"
-    val DEFAULT_FEEDS = listOf(Feed("FinancialJuice", FINANCIAL_JUICE))
+    const val BLOOMBERG = "https://www.bloomberg.com/feeds/markets/news.rss"
+    // Bloomberg's own public headline feed: headline and link, the article opens on bloomberg.com
+    val DEFAULT_FEEDS = listOf(Feed("FinancialJuice", FINANCIAL_JUICE), Feed("Bloomberg", BLOOMBERG))
 
     private fun enc(s: String) = URLEncoder.encode(s, "UTF-8")
     fun stockUrl(symbol: String) = "https://query2.finance.yahoo.com/v1/finance/search?q=${enc(symbol)}&newsCount=10&quotesCount=0"

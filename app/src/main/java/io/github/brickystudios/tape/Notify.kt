@@ -6,7 +6,6 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.text.format.DateFormat
@@ -31,6 +30,7 @@ object Notify {
     private const val WIRE_ID = 1
     private const val MARKET_ID = 2
     const val EXTRA_TAB = "tab"
+    const val EXTRA_SYMBOL = "symbol"
 
     fun channels(ctx: Context) {
         val nm = ctx.getSystemService(NotificationManager::class.java)
@@ -52,13 +52,13 @@ object Notify {
         for ((q, _) in moves) {
             val title = q.symbol + "  " + percent(q.change)
             val text = ctx.getString(R.string.price_text, String.format(Locale.getDefault(), "%.2f", q.price), q.currency, String.format(Locale.getDefault(), "%.2f", q.previousClose))
-            nm.notify(("price:" + q.symbol).hashCode(), base(ctx, PRICES, q.time, app(ctx, 0), q.symbol.hashCode(), quiet).setContentTitle(title).setContentText(text).build())
+            nm.notify(("price:" + q.symbol).hashCode(), base(ctx, PRICES, q.time, detail(ctx, q.symbol), q.symbol.hashCode(), quiet).setContentTitle(title).setContentText(text).build())
         }
         // shortcut: at most 5 stock events per check, the rest waits in the list; upgrade to a summary if people miss them
         for ((it, kind) in events.take(5)) {
             nm.notify(
                 it.id.hashCode(),
-                base(ctx, STOCKS, it.time, Intent(Intent.ACTION_VIEW, Uri.parse(it.link)), it.id.hashCode(), quiet)
+                base(ctx, STOCKS, it.time, detail(ctx, it.tickers.first()), it.id.hashCode(), quiet)
                     .setContentTitle(it.tickers.joinToString("  ") + "  ·  " + ctx.getString(kindLabel(kind)) + "  ·  " + it.source)
                     .setContentText(it.title)
                     .setStyle(NotificationCompat.BigTextStyle().bigText(it.title))
@@ -122,6 +122,9 @@ object Notify {
         Kind.MOVE -> R.string.kind_move
         Kind.RELEASE -> R.string.kind_release
     }
+
+    /** Opens the stock's detail page: price, chart, the assessment and this headline on top of its news. */
+    private fun detail(ctx: Context, symbol: String) = app(ctx, 0).putExtra(EXTRA_SYMBOL, symbol)
 
     private fun app(ctx: Context, tab: Int) =
         Intent(ctx, MainActivity::class.java).putExtra(EXTRA_TAB, tab).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)

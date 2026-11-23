@@ -1,0 +1,3 @@
+{"chart":{"result":[{"meta":{"currency":"USD","symbol":"NVDA","exchangeName":"NMS","fullExchangeName":"NasdaqGS","regularMarketPrice":165.05,"chartPreviousClose":125.53,"regularMarketDayHigh":171.5,"regularMarketDayLow":156.93,"fiftyTwoWeekHigh":243.37,"fiftyTwoWeekLow":124.5,"regularMarketVolume":772485268,"longName":"NVIDIA   Corporation"},
+"timestamp":[1795440600,1795440900,1795441200,1795441500],
+"indicators":{"quote":[{"close":[160.1,null,162.5,165.05]}]}}],"error":null}}

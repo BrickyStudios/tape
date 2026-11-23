@@ -19,7 +19,7 @@
 <p align="center">
   <img src="docs/bilder/1-watchlist.png" width="250" alt="Watchlist: headlines that name the stocks you follow, newest first, with an amber clock on those under 10 minutes old">
   <img src="docs/bilder/2-wire.png" width="250" alt="Wire: market headlines from FinancialJuice as they come in">
-  <img src="docs/bilder/3-setup.png" width="250" alt="Setup: stocks added by symbol or company name, market feeds with on/off switches">
+  <img src="docs/bilder/3-setup.png" width="250" alt="Setup: alert words for market headlines, quiet hours at night and reading alerts aloud">
 </p>
 
 <p align="center">

@@ -88,7 +88,7 @@ object Wire {
                 Answer(f.url, r.getOrNull(), listOf(f.name to r.exceptionOrNull()?.let(::reason)))
             }
         }
-        val perStock = if (stocks) favorites.map { f -> async { stockNews(f) } } else emptyList()
+        val perStock = if (stocks) favorites.flatMap { f -> listOf(async { stockNews(f) }, async { seekingAlpha(f) }) } else emptyList()
         // one price request for your stocks and the market rows, the small day lines every 5 minutes with the stock news
         val symbols = (favorites.map { it.symbol } + MARKET).distinct()
         val prices = async { runCatching { symbols.chunked(20).flatMap { c -> News.parseSpark(get(News.sparkUrl(c))) } } }
@@ -157,6 +157,12 @@ object Wire {
         yahoo.getOrNull()?.takeIf { it.isNotEmpty() }?.let { return Answer("stock:" + f.symbol, it, listOf(yahooCheck)) }
         val google = runCatching { News.parseRss(get(News.googleUrl(f)), GOOGLE) }
         return Answer("google:" + f.symbol, google.getOrNull()?.map { it.copy(wire = false) }, listOf(yahooCheck, GOOGLE to google.exceptionOrNull()?.let(::reason)))
+    }
+
+    /** Alongside Yahoo, not instead: Seeking Alpha has the analyst and insider items, Yahoo the wider press. */
+    private fun seekingAlpha(f: Favorite): Answer {
+        val r = runCatching { News.parseSeekingAlpha(get(News.seekingAlphaUrl(f.symbol))) }
+        return Answer("sa:" + f.symbol, r.getOrNull(), listOf(News.SEEKING_ALPHA to r.exceptionOrNull()?.let(::reason)))
     }
 
     private val charts = ConcurrentHashMap<String, Pair<Long, Chart>>()

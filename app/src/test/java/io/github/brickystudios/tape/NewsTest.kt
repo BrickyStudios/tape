@@ -42,6 +42,16 @@ class NewsTest {
         assertEquals("Example Wire", items[2].source)
     }
 
+    @Test fun `Seeking Alpha keeps news items, drops opinion articles`() {
+        val items = News.parseSeekingAlpha(res("sa.xml"))
+        assertEquals(1, items.size)
+        assertEquals("Example Corp upgraded to Buy at a broker", items[0].title)
+        assertEquals("Seeking Alpha:https://seekingalpha.com/MarketCurrent:111", items[0].id)
+        assertEquals(at("2026-11-23T20:09:08Z"), items[0].time)
+        assertEquals("Seeking Alpha", items[0].source)
+        assertFalse(items[0].wire)
+    }
+
     @Test fun `feed with a DOCTYPE is refused`() {
         val evil = """<?xml version="1.0"?><!DOCTYPE r [<!ENTITY x SYSTEM "file:///etc/passwd">]><rss><channel><item><title>&x;</title>
             <link>https://e.com</link><pubDate>Mon, 23 Nov 2026 17:00:00 GMT</pubDate></item></channel></rss>"""

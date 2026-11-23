@@ -215,8 +215,8 @@ fun Setup(now: Long, onFavorites: (List<Favorite>) -> Unit) {
         item { Note(stringResource(R.string.delivery_note)) }
 
         item { Section(R.string.section_sources) }
-        // one line per feed plus Yahoo news, Google News and prices; a failing source shows its error here
-        val names = feeds.filter { it.on }.map { it.name } + listOf("Yahoo Finance news", "Google News", Wire.PRICES)
+        // one line per feed plus Yahoo news, Seeking Alpha, Google News and prices; a failing source shows its error here
+        val names = feeds.filter { it.on }.map { it.name } + listOf("Yahoo Finance news", News.SEEKING_ALPHA, "Google News", Wire.PRICES)
         items(names.filter { it in status }, key = { "status:" + it }) { name ->
             val c = status.getValue(name)
             val time = clock(ctx, c.time, now)

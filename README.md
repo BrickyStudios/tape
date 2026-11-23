@@ -1,6 +1,6 @@
 <h1 align="center">Tape: stock prices and the news that moves them (Android, open source)</h1>
 
-<p align="center"><strong>Your stocks with price, today's line and change. Tap one for its chart and a one-sentence note on what the latest news means. A push comes when a stock moves 5 % or reports earnings, a deal or a management change, and Fed decisions and inflation data ring too. The Market tab shows eight indices and prices over the news ticker. Headlines go straight from Yahoo Finance, Google News, FinancialJuice and Bloomberg to your phone. No ads, no account, no server. Free, open source, English and German.</strong></p>
+<p align="center"><strong>Your stocks with price, today's line and change. Tap one for its chart and a one-sentence note on what the latest news means. A push comes when a stock moves 5 % or reports earnings, a deal or a management change, and Fed decisions and inflation data ring too. The Market tab shows eight indices and prices over the news ticker. Headlines go straight from Yahoo Finance, Seeking Alpha, Google News, FinancialJuice and Bloomberg to your phone. No ads, no account, no server. Free, open source, English and German.</strong></p>
 
 <p align="center">
   <a href="https://kotlinlang.org/"><img alt="Made with Kotlin" src="https://img.shields.io/badge/made_with-Kotlin-121212?style=for-the-badge&logo=kotlin&logoColor=F2A93B"></a>
@@ -61,19 +61,21 @@ On Android 13 and newer, checks on the minute work out of the box. On Android 12
 |---|---|---|
 | Yahoo Finance search | News per stock, stock lookup | Unofficial endpoint, can change or refuse at any time |
 | Yahoo Finance spark | Today's price and yesterday's close | Unofficial endpoint, regular session only, one request per 20 stocks |
+| Seeking Alpha RSS | News per stock: analyst ratings, insider trades, company news | One feed per stock, every 5 minutes. Skips opinion articles |
 | Google News RSS | News per stock when Yahoo fails | |
 | Yahoo Finance chart | Detail page chart and day figures | Unofficial endpoint, loaded when you open a stock, kept 5 minutes |
 | FinancialJuice RSS | Ticker | On by default, switch it off under Setup |
 | Bloomberg RSS | Ticker | Bloomberg's public headline feed; articles open on bloomberg.com |
+| CNBC Markets RSS | Ticker | Off by default, switch it on under Setup |
 | Any RSS feed | Ticker | Add an https address under Setup |
 
-Tape shows the headline and links to the source. It copies no articles and keeps no archive beyond the last 600 headlines on your phone. Tape is not affiliated with Yahoo, Google, FinancialJuice or Bloomberg.
+Tape shows the headline and links to the source. It copies no articles and keeps no archive beyond the last 600 headlines on your phone. Tape is not affiliated with Yahoo, Seeking Alpha, Google, FinancialJuice, Bloomberg or CNBC.
 
 ## Privacy
 
 - No account, no analytics, no server of our own.
 - Your watchlist and settings stay on the phone and are excluded from Android backups.
-- The phone talks directly to Yahoo Finance, Google News, your feeds and GitHub (update check). Those services see your IP address, and Yahoo sees your symbols: the price check asks for all of them every minute while markets are open.
+- The phone talks directly to Yahoo Finance, Seeking Alpha, Google News, your feeds and GitHub (update check). Those services see your IP address. Yahoo and Seeking Alpha see your symbols: Yahoo's price check asks for all of them every minute while markets are open, Seeking Alpha gets one request per stock every 5 minutes.
 - Reading aloud uses the text-to-speech engine on your phone.
 
 ## Limits

@@ -46,14 +46,22 @@ data class Feed(val name: String, val url: String, val on: Boolean = true)
 object News {
     const val FINANCIAL_JUICE = "https://www.financialjuice.com/feed.ashx?xy=rss"
     const val BLOOMBERG = "https://www.bloomberg.com/feeds/markets/news.rss"
-    // Bloomberg's own public headline feed: headline and link, the article opens on bloomberg.com
-    val DEFAULT_FEEDS = listOf(Feed("FinancialJuice", FINANCIAL_JUICE), Feed("Bloomberg", BLOOMBERG))
+    const val CNBC = "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=20910258"
+    const val SEEKING_ALPHA = "Seeking Alpha"
+    // Bloomberg's own public headline feed: headline and link, the article opens on bloomberg.com. CNBC starts off: one more feed means more rings.
+    val DEFAULT_FEEDS = listOf(Feed("FinancialJuice", FINANCIAL_JUICE), Feed("Bloomberg", BLOOMBERG), Feed("CNBC Markets", CNBC, on = false))
 
     private fun enc(s: String) = URLEncoder.encode(s, "UTF-8")
     fun stockUrl(symbol: String) = "https://query2.finance.yahoo.com/v1/finance/search?q=${enc(symbol)}&newsCount=10&quotesCount=0"
     fun lookupUrl(query: String) = "https://query2.finance.yahoo.com/v1/finance/search?q=${enc(query)}&newsCount=0&quotesCount=6"
     /** When Yahoo refuses or has nothing: Google News for the company name. */
     fun googleUrl(f: Favorite) = "https://news.google.com/rss/search?q=${enc(f.keyword + " stock")}&hl=en-US&gl=US&ceid=US:en"
+
+    /** Seeking Alpha's feed for one stock, tagged to it by their editors: analyst ratings, insider trades, company news. */
+    fun seekingAlphaUrl(symbol: String) = "https://seekingalpha.com/api/sa/combined/${enc(symbol)}.xml"
+
+    /** Keeps Seeking Alpha's news ("MarketCurrent" ids), drops its contributors' opinion articles ("Article" ids). */
+    fun parseSeekingAlpha(xml: String): List<Item> = parseRss(xml, SEEKING_ALPHA).filter { "MarketCurrent:" in it.id }.map { it.copy(wire = false) }
 
     /** RSS 2.0. Items without title, http link or date are dropped. [feedName] labels items that carry no <source>. */
     fun parseRss(xml: String, feedName: String): List<Item> {

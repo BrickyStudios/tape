@@ -6,6 +6,6 @@
         <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:windowLightStatusBar">false</item>
     </style>
-    <color name="ink">#121212</color>
+    <color name="ink">#141415</color>
     <color name="amber">#F2A93B</color>
 </resources>

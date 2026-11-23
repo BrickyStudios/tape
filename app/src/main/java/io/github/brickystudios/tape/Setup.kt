@@ -115,7 +115,7 @@ fun Setup(now: Long, onFavorites: (List<Favorite>) -> Unit) {
         items(feeds, key = { "feed:" + it.url }) { f ->
             Row(Modifier.fillMaxWidth().heightIn(min = 56.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text(f.name, fontSize = 15.sp, color = Text1)
+                    Text(f.name, fontSize = 16.sp, color = Text1)
                     Text(Uri.parse(f.url).host.orEmpty(), style = MetaStyle.copy(color = Text3), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 if (f.url != News.FINANCIAL_JUICE) TextButton(onClick = { saveFeeds(feeds - f) }) { Text(stringResource(R.string.remove), color = Text2) }
@@ -179,10 +179,10 @@ private fun Note(text: String) = Text(text, style = MetaStyle, modifier = Modifi
 @Composable
 private fun Line(symbol: String, name: String, action: String, accent: Boolean = false, onClick: () -> Unit) {
     Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(onClick = onClick), verticalAlignment = Alignment.CenterVertically) {
-        Text(symbol, Modifier.width(104.dp).padding(end = 12.dp), fontSize = 15.sp, fontFamily = FontFamily.Monospace, color = Text1, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Text(name, Modifier.weight(1f), fontSize = 15.sp, color = Text2, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(symbol, Modifier.width(104.dp).padding(end = 12.dp), fontSize = 16.sp, fontFamily = FontFamily.Monospace, color = Text1, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(name, Modifier.weight(1f), fontSize = 16.sp, color = Text2, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Spacer(Modifier.width(12.dp))
-        Text(action, fontSize = 14.sp, color = if (accent) Amber else Text3)
+        Text(action, fontSize = 14.sp, color = if (accent) Text1 else Text3)
     }
     HorizontalDivider(color = Hairline)
 }
@@ -190,7 +190,7 @@ private fun Line(symbol: String, name: String, action: String, accent: Boolean =
 @Composable
 private fun Status(label: Int, value: String, onClick: () -> Unit) {
     Column(Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(onClick = onClick).padding(vertical = 8.dp)) {
-        Text(stringResource(label), fontSize = 15.sp, color = Text1)
+        Text(stringResource(label), fontSize = 16.sp, color = Text1)
         Text(value, style = MetaStyle)
     }
     HorizontalDivider(color = Hairline)

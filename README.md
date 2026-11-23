@@ -32,13 +32,13 @@
   <a href="#auf-deutsch">Deutsch</a>
 </p>
 
-Finance apps bury the news about your stocks between ads, videos and market wraps. Tape keeps two lists. **Watchlist** shows headlines that name one of your stocks. **Wire** shows the market headlines as they come in. A headline about one of your stocks also arrives as a notification.
+Tape keeps two lists. **Watchlist** shows headlines that name one of your stocks. **Wire** shows the market headlines as they come in. A headline about one of your stocks also arrives as a notification.
 
 ## Install
 
 Download [Tape.apk](https://github.com/BrickyStudios/tape/releases/latest/download/Tape.apk) and open it. Android asks once whether your browser may install apps. Tape needs Android 8.0 or newer and no Google services.
 
-Tape updates itself: when a newer release is on GitHub, a bar at the top offers to install it. Android only accepts the update when it carries the same signing key.
+Tape updates itself. When a newer release is on GitHub, a bar at the top offers to install it. Android only accepts the update when it carries the same signing key.
 
 ## How it works
 

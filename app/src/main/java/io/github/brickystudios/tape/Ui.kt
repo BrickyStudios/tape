@@ -33,13 +33,13 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
-// A wire desk at night: graphite surfaces, one amber accent. Amber only marks what is minutes old.
-val Ink = Color(0xFF121212)
-val Raised = Color(0xFF1C1C1C)
-val Text1 = Color(0xFFECEAE6)
-val Text2 = Color(0xFFA19D97)
-/** 4.6:1 on Ink, still readable for 13 sp meta */
-val Text3 = Color(0xFF87837D)
+// A wire desk at night: one graphite ramp (unslop tokens), one amber accent. Amber marks what is minutes old and the primary action.
+val Ink = Color(0xFF141415)
+val Raised = Color(0xFF232325)
+val Text1 = Color(0xFFEDEDED)
+val Text2 = Color(0xFFA1A1A6)
+/** 4.9:1 on Ink, still readable for 13 sp meta */
+val Text3 = Color(0xFF85858B)
 val Amber = Color(0xFFF2A93B)
 val Hairline = Text1.copy(alpha = 0.08f)
 
@@ -48,7 +48,7 @@ val TitleStyle = TextStyle(fontSize = 28.sp, lineHeight = 36.sp, fontWeight = Fo
 val HeadlineStyle = TextStyle(fontSize = 16.sp, lineHeight = 22.sp, color = Text1)
 val MetaStyle = TextStyle(fontSize = 13.sp, lineHeight = 18.sp, color = Text2)
 val ClockStyle = TextStyle(fontSize = 13.sp, lineHeight = 22.sp, fontFamily = FontFamily.Monospace)
-val SectionStyle = TextStyle(fontSize = 15.sp, lineHeight = 20.sp, fontWeight = FontWeight.Medium, color = Text2)
+val SectionStyle = TextStyle(fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.Medium, color = Text2)
 
 /** Headlines this young get the amber clock. */
 const val LIVE = 10 * MINUTE

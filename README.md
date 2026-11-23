@@ -1,6 +1,6 @@
 <h1 align="center">Tape: stock prices and the news that moves them (Android, open source)</h1>
 
-<p align="center"><strong>Your stocks with price, today's line and change, a detail page with chart and a plain-language note on what the latest news means, and the market at a glance. A push comes when a stock moves 5 % or reports earnings, a deal or a management change. Fed decisions and inflation data ring too, and a live market wire sits one tab over. Headlines go straight from Yahoo Finance, Google News and FinancialJuice to your phone. No ads, no account, no server. Free, open source, English and German.</strong></p>
+<p align="center"><strong>Your stocks with price, today's line and change. Tap one for its chart and a one-sentence note on what the latest news means. A push comes when a stock moves 5 % or reports earnings, a deal or a management change, and Fed decisions and inflation data ring too. The Market tab shows eight indices and prices over the news ticker. Headlines go straight from Yahoo Finance, Google News, FinancialJuice and Bloomberg to your phone. No ads, no account, no server. Free, open source, English and German.</strong></p>
 
 <p align="center">
   <a href="https://kotlinlang.org/"><img alt="Made with Kotlin" src="https://img.shields.io/badge/made_with-Kotlin-121212?style=for-the-badge&logo=kotlin&logoColor=F2A93B"></a>
@@ -44,7 +44,7 @@ Tape updates itself. When a newer release is on GitHub, a bar at the top offers 
 ## How it works
 
 1. **Add stocks** under Setup by symbol or company name (`AMZN`, `amazon`). The search comes from Yahoo Finance.
-2. **Tape checks** the wire every minute on weekdays from 2:00 to 18:00 New York time and every 15 minutes otherwise. It searches news for each stock every 5 minutes, and right away when you pull down.
+2. **Tape checks** the ticker feeds every minute on weekdays from 2:00 to 18:00 New York time and every 15 minutes otherwise. It searches news for each stock every 5 minutes, and right away when you pull down.
 3. **A headline counts for a stock** when it names the company or the symbol: `Amazon`, `AMZN`, `$AMZN`. Yahoo's search also returns fund lists and market wraps that only mention a stock in passing. In a test with 8 stocks, fewer than half of its results named the company, so Tape drops the rest.
 4. **Price moves ring** when a stock crosses ±5 % against yesterday's close, then again at ±10 %, ±15 % and so on, once a day per step. You can set 3, 5 or 10 % under Setup. A stock you just added starts quietly.
 5. **Stock headlines ring** only for events: earnings and guidance, analyst up- or downgrades, deals, management changes, lawsuits and regulators, trading halts, buybacks and dividend changes, big moves, and press releases from Business Wire, PR Newswire or GlobeNewswire. Questions ("Can revenue accelerate?") and lists ("3 stocks to buy") stay in the list without a sound, and the event shows as a label next to the headline.
@@ -63,9 +63,9 @@ On Android 13 and newer, checks on the minute work out of the box. On Android 12
 | Yahoo Finance spark | Today's price and yesterday's close | Unofficial endpoint, regular session only, one request per 20 stocks |
 | Google News RSS | News per stock when Yahoo fails | |
 | Yahoo Finance chart | Detail page chart and day figures | Unofficial endpoint, loaded when you open a stock, kept 5 minutes |
-| FinancialJuice RSS | Market wire | On by default, switch it off under Setup |
-| Bloomberg RSS | Market wire | Bloomberg's public headline feed; articles open on bloomberg.com |
-| Any RSS feed | Market wire | Add an https address under Setup |
+| FinancialJuice RSS | Ticker | On by default, switch it off under Setup |
+| Bloomberg RSS | Ticker | Bloomberg's public headline feed; articles open on bloomberg.com |
+| Any RSS feed | Ticker | Add an https address under Setup |
 
 Tape shows the headline and links to the source. It copies no articles and keeps no archive beyond the last 600 headlines on your phone. Tape is not affiliated with Yahoo, Google, FinancialJuice or Bloomberg.
 
@@ -79,7 +79,7 @@ Tape shows the headline and links to the source. It copies no articles and keeps
 ## Limits
 
 - Fixed market hours, no exchange holidays. Price alerts cover the regular session, not pre- or after-market trading.
-- The assessment ("rather positive", "rather negative") reads keywords in the headline. It is a reading aid, not a forecast.
+- The assessment ("rather positive", "rather negative") reads keywords in the headline. It describes the wording and predicts nothing about the price.
 - Event detection uses English keyword lists. An unusually worded headline can slip through quietly; it still shows in the list.
 - A headline that never names the company is missed, even when the article is about it.
 - No earnings or dividend calendar yet: Yahoo's endpoint for it needs a login token.
@@ -95,7 +95,7 @@ JDK 17 and the Android SDK:
 ./gradlew testDebugUnitTest assembleDebug
 ```
 
-The tests in `app/src/test` cover parsing, matching, event detection, price steps, quiet hours and timing with sample feeds.
+The tests in `app/src/test` cover parsing, matching, event detection, tone, price steps, charts, market hours, number formats, quiet hours and timing with sample feeds.
 
 ## Auf Deutsch
 

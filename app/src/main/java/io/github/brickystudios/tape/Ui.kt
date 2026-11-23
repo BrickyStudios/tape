@@ -151,9 +151,9 @@ fun HeadlineRow(item: Item, now: Long, tag: String? = null) {
 @Composable
 fun ChangeTag(change: Double?, modifier: Modifier = Modifier) {
     if (change == null || change.isNaN()) { Text("—", modifier, style = MetaStyle); return }
-    val color = if (change >= 0) Up else Down
+    val color = if (flat(change)) Text2 else if (change > 0) Up else Down
     Text(
-        (if (change >= 0) "▲ " else "▼ ") + percent(change),
+        (if (flat(change)) "" else if (change > 0) "▲ " else "▼ ") + percent(change),
         modifier.clip(RoundedCornerShape(6.dp)).background(color.copy(alpha = 0.14f)).padding(horizontal = 6.dp, vertical = 2.dp),
         fontSize = 13.sp, color = color, style = Tnum, maxLines = 1,
     )

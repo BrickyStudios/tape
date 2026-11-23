@@ -52,6 +52,13 @@ class MarketTest {
         assertEquals("950", Market.compact(950, Locale.US))
     }
 
+    @Test fun `percent has a sign, except when the move rounds to zero`() {
+        assertEquals("+31.5\u202F%", percent(31.48, Locale.US))
+        assertEquals("−0.6\u202F%", percent(-0.6, Locale.US))
+        assertEquals("0.0\u202F%", percent(-0.04, Locale.US))
+        assertEquals("0,0\u202F%", percent(0.03, Locale.GERMANY))
+    }
+
     @Test fun `tone reads rather good, rather bad or unclear`() {
         assertEquals(1, Alerts.tone("Nvidia beats estimates and raises guidance"))
         assertEquals(1, Alerts.tone("Morgan Stanley upgrades Apple"))

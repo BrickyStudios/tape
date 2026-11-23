@@ -20,7 +20,12 @@ import java.util.Locale
 import kotlin.math.abs
 
 /** Signed percent the same way everywhere, chips, pushes and Setup: "+31.5 %", "−5.2 %" with a narrow no-break space. */
-fun percent(change: Double): String = String.format(Locale.getDefault(), "%+.1f\u202F%%", change).replace('-', '−')
+fun percent(change: Double, locale: Locale = Locale.getDefault()): String =
+    if (flat(change)) String.format(locale, "%.1f\u202F%%", 0.0) // no "−0.0 %": a flat price is not a loss
+    else String.format(locale, "%+.1f\u202F%%", change).replace('-', '−')
+
+/** Rounds to 0.0 %: shown without arrow and in grey. */
+fun flat(change: Double) = Math.abs(change) < 0.05
 
 object Notify {
     private const val PRICES = "prices"

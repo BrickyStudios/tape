@@ -190,7 +190,7 @@ fun priceText(q: Quote, plain: Boolean) = if (plain) Market.number(q.price) else
  * TalkBack reads it as one sentence: "NVIDIA, 165,05 $, ▲ +31,5 %".
  */
 @Composable
-fun QuoteRow(title: String, subtitle: String, quote: Quote?, points: List<Double>?, plain: Boolean, mono: Boolean, stale: String?, ext: Ext? = null, onClick: (() -> Unit)?) {
+fun QuoteRow(title: String, subtitle: String, quote: Quote?, points: List<Double>?, plain: Boolean, mono: Boolean, stale: String?, ext: Ext? = null, hint: String? = null, onClick: (() -> Unit)?) {
     val change = quote?.change
     val after = ext?.takeIf { quote != null && it.time > quote.time }
     val price = quote?.let { priceText(it, plain) } ?: "—"
@@ -216,8 +216,11 @@ fun QuoteRow(title: String, subtitle: String, quote: Quote?, points: List<Double
                 if (stale != null) Text(stale, style = MetaStyle.copy(color = Text3), maxLines = 1) else ChangeTag(change)
             }
         }
-        // under the whole row, so it does not push the day line aside
-        if (after != null) ExtLine(after)
+        // under the whole row, so it does not push the day line aside; the earnings date on the left
+        if (after != null || hint != null) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(hint.orEmpty(), Modifier.weight(1f), style = MetaStyle.copy(color = Text1), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (after != null) ExtLine(after)
+        }
     }
     HorizontalDivider(color = Hairline)
 }
@@ -233,13 +236,13 @@ fun statusLine(now: Long, checked: Long, checking: Boolean): String {
             MarketStatus.AFTER -> ctx.getString(R.string.market_after)
             MarketStatus.CLOSED -> null
         }
-    }.joinToString("  ·  ").ifEmpty { ctx.getString(R.string.markets_closed) }
+    }.joinToString(" · ").ifEmpty { ctx.getString(R.string.markets_closed) }
     val check = when {
         checking -> stringResource(R.string.checking)
         checked > 0 -> stringResource(R.string.checked, clock(ctx, checked, now))
         else -> return market
     }
-    return "$market  ·  $check"
+    return "$market · $check"
 }
 
 /** "Europe open" or "US pre-market" for one price, by where it trades; null for futures, currencies and crypto. */

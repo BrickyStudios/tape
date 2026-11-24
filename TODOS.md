@@ -2,7 +2,7 @@
 
 Deferred in the v0.2.0 scope review (23.11.2026), with the reason.
 
-- **Earnings and dividend calendar.** Yahoo's `v10/finance/quoteSummary?modules=calendarEvents` answers 401 "Invalid Crumb" without a cookie and crumb. Earnings headlines already ring through event detection. Pick this up when there is a crumb-free source for dates.
+- **Dividend calendar.** Earnings dates come from Yahoo's calendar since 0.6.0 (crumb-free); dividends are still missing.
 - **AI one-liner per alert.** Needs an API key or an on-device model, and users ask for real news rather than AI summaries. Revisit if people ask for it.
 - **"Mute this stock today" action.** A notification action receiver. Next round, if the alert volume calls for it. (The morning overview shipped in 0.5.0.)
 - **Exchange holidays.** Sessions are fixed hours on weekdays. Pre-market and after-hours prices show since 0.5.0, but do not ring.

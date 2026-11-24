@@ -62,7 +62,8 @@ import kotlinx.coroutines.launch
 
 private const val WATCHLIST = 0
 private const val MARKET_TAB = 1
-private const val SETUP = 2
+private const val AGENDA = 2
+private const val SETUP = 3
 
 class MainActivity : ComponentActivity() {
     private val askNotify = registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
@@ -113,6 +114,11 @@ private fun App(tab: MutableIntState, opened: MutableState<String?>) {
     val market by Wire.market.collectAsStateWithLifecycle()
     val points by Wire.points.collectAsStateWithLifecycle()
     val ext by Wire.ext.collectAsStateWithLifecycle()
+    val releases by Wire.releases.collectAsStateWithLifecycle()
+    val earnings by Wire.earnings.collectAsStateWithLifecycle()
+    val mentions by Wire.mentions.collectAsStateWithLifecycle()
+    val posts by Wire.posts.collectAsStateWithLifecycle()
+    val cot by Wire.cot.collectAsStateWithLifecycle()
     val store = remember { Store(ctx) }
     var favorites by remember { mutableStateOf(store.favorites) }
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -136,7 +142,9 @@ private fun App(tab: MutableIntState, opened: MutableState<String?>) {
     val all = items.orEmpty()
     val watchlist = all.map { News.tag(it, favorites) }.filter { it.tickers.isNotEmpty() }
     val wire = all.filter { it.wire }.map { News.tag(it, favorites) }
-    val counts = listOf(Alerts.newCount(watchlist, seen[0]), Alerts.newCount(wire, seen[1]), 0)
+    val counts = listOf(Alerts.newCount(watchlist, seen[0]), Alerts.newCount(wire, seen[1]), 0, 0)
+    val zone = remember { java.time.ZoneId.systemDefault() }
+    val redditPosts = remember(checked) { store.redditPosts }
     val byQuote = (quotes + market).associateBy { it.symbol }
     val pricesError = remember(checked) { store.status[Wire.PRICES]?.error }
     val status = statusLine(now, checked, checking)
@@ -148,9 +156,12 @@ private fun App(tab: MutableIntState, opened: MutableState<String?>) {
         val fav = favorites.firstOrNull { it.symbol == detail }
         Detail(
             symbol = detail,
-            name = fav?.name ?: MARKET_NAMES[detail]?.let { stringResource(it.first) }.orEmpty(),
+            name = fav?.name ?: MARKET_NAMES[detail]?.let { stringResource(it.first) } ?: mentions.firstOrNull { it.symbol == detail }?.name ?: earnings.firstOrNull { it.symbol == detail }?.name.orEmpty(),
             quote = byQuote[detail],
             ext = ext[detail],
+            earning = Agenda.next(earnings, detail, now, zone),
+            mention = mentions.firstOrNull { it.symbol == detail },
+            watched = fav != null,
             plain = detail in MARKET,
             news = if (fav != null) watchlist.filter { detail in it.tickers } else emptyList(),
             now = now,
@@ -167,7 +178,7 @@ private fun App(tab: MutableIntState, opened: MutableState<String?>) {
                     if (pricesError != null) item { ErrorLine(pricesError) { tab.intValue = SETUP } }
                     if (favorites.isEmpty()) item { Text(stringResource(R.string.empty_watchlist), style = MetaStyle, modifier = Modifier.padding(vertical = 12.dp)) }
                     items(favorites, key = { "q:" + it.symbol }) { f ->
-                        QuoteRow(f.symbol, f.name, byQuote[f.symbol], points[f.symbol], plain = false, mono = true, stale = stale(f.symbol, byQuote[f.symbol], now), ext = ext[f.symbol]) { opened.value = f.symbol }
+                        QuoteRow(f.symbol, f.name, byQuote[f.symbol], points[f.symbol], plain = false, mono = true, stale = stale(f.symbol, byQuote[f.symbol], now), ext = ext[f.symbol], hint = earningHint(Agenda.next(earnings, f.symbol, now, zone), now)) { opened.value = f.symbol }
                     }
                     item {
                         Text(
@@ -197,9 +208,26 @@ private fun App(tab: MutableIntState, opened: MutableState<String?>) {
                     }
                     item { Section(R.string.region_other) }
                     items(MARKET_OTHER, key = { "mk:" + it }) { s -> MarketRow(s, byQuote[s], points[s], now) { opened.value = s } }
+                    // what MSW built into its own app: a fear gauge and the most named tickers with their move
+                    item { Section(R.string.section_mood) }
+                    item { VixRow(byQuote[VIX]) { opened.value = VIX } }
+                    if (cot.isNotEmpty()) item { PositioningBlock(cot) }
+                    if (mentions.isNotEmpty()) {
+                        item { Section(R.string.section_reddit) }
+                        item { Text(stringResource(R.string.reddit_note), style = MetaStyle.copy(color = Text3), modifier = Modifier.padding(bottom = 8.dp)) }
+                        items(mentions.take(5), key = { "rd:" + it.symbol }) { m -> MentionRow(m, byQuote[m.symbol]) { opened.value = m.symbol } }
+                    }
+                    if (redditPosts && posts.isNotEmpty()) {
+                        item { Section(R.string.section_posts) }
+                        val top = Reddit.top(posts, "wallstreetbets") + Reddit.top(posts, "mauerstrassenwetten")
+                        items(top, key = { "rp:" + it.id }) { PostRow(it, now) }
+                    }
                     item { Section(R.string.ticker) }
                     if (wire.isEmpty()) item { Text(stringResource(R.string.empty_news), style = MetaStyle, modifier = Modifier.padding(vertical = 12.dp)) }
                     items(wire.take(60), key = { "w:" + it.id }) { i -> HeadlineRow(i, now, Alerts.alertWord(i.title, words)?.let { "$wordTag $it" }) }
+                }
+                AGENDA -> Page(stringResource(R.string.tab_agenda), status, pulled, { refresh() }) {
+                    agendaItems(releases, earnings, favorites, now) { opened.value = it }
                 }
                 else -> Setup(now, onFavorites = { favorites = it })
             }
@@ -242,6 +270,15 @@ private fun stale(symbol: String, q: Quote?, now: Long): String? {
     return stringResource(R.string.price_from, clock(LocalContext.current, q.time, now))
 }
 
+/** "Earnings Thu 22:00" under a stock that reports within a week. */
+@Composable
+private fun earningHint(e: Earning?, now: Long): String? {
+    if (e == null || e.time - now > 7 * 24 * HOUR) return null
+    val ctx = LocalContext.current
+    val day = whenText(ctx, e.time, now).let { if (slotText(ctx, e) == null) it.substringBefore(' ') else it }
+    return stringResource(R.string.earnings_hint, day)
+}
+
 @Composable
 private fun MarketRow(symbol: String, quote: Quote?, points: List<Double>?, now: Long, onClick: () -> Unit) {
     val (name, sub) = MARKET_NAMES.getValue(symbol)
@@ -252,7 +289,7 @@ private fun MarketRow(symbol: String, quote: Quote?, points: List<Double>?, now:
 @Composable
 private fun TabBar(tab: MutableIntState, counts: List<Int>) {
     Row(Modifier.fillMaxWidth().height(56.dp)) {
-        listOf(R.string.tab_watchlist, R.string.tab_market, R.string.tab_setup).forEachIndexed { i, label ->
+        listOf(R.string.tab_watchlist, R.string.tab_market, R.string.tab_agenda, R.string.tab_setup).forEachIndexed { i, label ->
             val on = tab.intValue == i
             val count = if (on) 0 else counts.getOrElse(i) { 0 }
             Box(Modifier.weight(1f).fillMaxSize().clickable { tab.intValue = i }, contentAlignment = Alignment.Center) {

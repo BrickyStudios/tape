@@ -1,6 +1,6 @@
 <h1 align="center">Tape: stock prices and the news that moves them (Android, open source)</h1>
 
-<p align="center"><strong>Your stocks with price, today's line and change. Tap one for its chart and a one-sentence note on what the latest news means. A push comes when a stock moves 5 % or reports earnings, a deal or a management change, and Fed decisions and inflation data ring too. The Market tab shows Europe, the US with its futures and Asia, with whatever trades right now on top. US stocks also show their pre-market and after-hours move. Headlines go straight from Yahoo Finance, Seeking Alpha, Google News, FinancialJuice and Bloomberg to your phone. No ads, no account, no server. Free, open source, English and German.</strong></p>
+<p align="center"><strong>Your stocks with price, today's line and change. Tap one for its chart and a one-sentence note on what the latest news means. A push comes when a stock moves 5 % or reports earnings, a deal or a management change, and Fed decisions and inflation data ring too. The Market tab shows Europe, the US with its futures and Asia, with whatever trades right now on top. US stocks also show their pre-market and after-hours move. The Dates tab lists the week's earnings and economic releases, and the Market tab reads the mood: the VIX, how professionals are positioned, and what Reddit's stock forums talk about. Headlines go straight from Yahoo Finance, Seeking Alpha, Google News, FinancialJuice and Bloomberg to your phone. No ads, no account, no server. Free, open source, English and German.</strong></p>
 
 <p align="center">
   <a href="https://kotlinlang.org/"><img alt="Made with Kotlin" src="https://img.shields.io/badge/made_with-Kotlin-121212?style=for-the-badge&logo=kotlin&logoColor=F2A93B"></a>
@@ -54,6 +54,8 @@ Tape updates itself. When a newer release is on GitHub, a bar at the top offers 
 9. **Only alerts make noise.** The ticker in the notification shade, which always showed the newest headline, is off by default; switch it on under Setup.
 10. **The clock column** turns amber for headlines younger than 10 minutes, and a tab you are not on shows how many headlines came since you last looked.
 11. **In the morning** Europe sits on top of the Market tab and the US futures show how Wall Street is set to open. US stocks show last night's after-hours price, and from 10:00 Frankfurt time their pre-market price. On weekdays around 9:25 Frankfurt time a silent **morning overview** sums it up: DAX, Euro Stoxx 50, FTSE 100, the US futures, Nikkei and Hang Seng. Switch it off under Setup.
+12. **Dates** is the weekly calendar that r/wallstreetbets ("Most Anticipated Earnings") and r/mauerstrassenwetten ("Erntenkalender") post by hand: per day the economic releases in plain words ("Core inflation (PCE)", not "Core PCE Price Index m/m") and the earnings, your stocks first. A stock on your watchlist shows "Earnings Thu 22:00" in its row a week ahead.
+13. **Mood** on the Market tab: the VIX with a word for its level (calm, normal, nervous, panic), two sentences on how asset managers and hedge funds are positioned in the S&P 500 future according to the CFTC's weekly report, and the 5 most named stocks on Reddit with their move today, the way the community-built MSW Daily App shows them. **Reddit posts** (off by default) adds the 3 most discussed research, news, strategy and discussion posts from each of the two forums, without memes.
 
 On Android 13 and newer, checks on the minute work out of the box. On Android 12, allow **Exact timing** under Setup. If your phone's battery saver is aggressive, set **Battery** to unrestricted. **Sources** under Setup shows when each source last answered and why one failed. After an HTTP 429, Tape leaves that server alone for as long as it asks, 5 minutes by default.
 
@@ -70,6 +72,11 @@ On Android 13 and newer, checks on the minute work out of the box. On Android 12
 | Bloomberg RSS | Ticker | Bloomberg's public headline feed; articles open on bloomberg.com |
 | CNBC Markets RSS | Ticker | Off by default, switch it on under Setup |
 | Any RSS feed | Ticker | Add an https address under Setup |
+| ForexFactory calendar export | Economic releases of the week | Public JSON, every 3 hours |
+| Yahoo Finance calendar | Earnings dates and estimates | Unofficial endpoint, every 3 hours; a date shows once the company has announced it |
+| CFTC Traders in Financial Futures | Positioning in the S&P 500 E-mini future | The US regulator's open data, weekly, checked every 6 hours |
+| ApeWisdom | Most named stocks on Reddit | Every 30 minutes |
+| Arctic Shift | Reddit posts | Only when switched on; a free, volunteer-run Reddit archive, because Reddit blocks apps without a login |
 
 Tape shows the headline and links to the source. It copies no articles and keeps no archive beyond the last 600 headlines on your phone. Tape is not affiliated with Yahoo, Seeking Alpha, Google, FinancialJuice, Bloomberg or CNBC.
 
@@ -77,7 +84,7 @@ Tape shows the headline and links to the source. It copies no articles and keeps
 
 - No account, no analytics, no server of our own.
 - Your watchlist and settings stay on the phone and are excluded from Android backups.
-- The phone talks directly to Yahoo Finance, Seeking Alpha, Google News, your feeds and GitHub (update check). Those services see your IP address. Yahoo and Seeking Alpha see your symbols: Yahoo's price check asks for all of them every minute while markets are open (the market rows every 5 minutes while Tape is in the background), Seeking Alpha gets one request per US stock every 5 minutes.
+- The phone talks directly to Yahoo Finance, Seeking Alpha, Google News, ForexFactory, the CFTC, ApeWisdom, your feeds and GitHub (update check), and to Arctic Shift when Reddit posts are on. None of them gets your watchlist except Yahoo (prices and earnings dates) and Seeking Alpha. Those services see your IP address. Yahoo and Seeking Alpha see your symbols: Yahoo's price check asks for all of them every minute while markets are open (the market rows every 5 minutes while Tape is in the background), Seeking Alpha gets one request per US stock every 5 minutes.
 - Reading aloud uses the text-to-speech engine on your phone.
 
 ## Limits
@@ -89,6 +96,7 @@ Tape shows the headline and links to the source. It copies no articles and keeps
 - No earnings or dividend calendar yet: Yahoo's endpoint for it needs a login token.
 - Symbols with one or two letters (`PG`, `GE`) only match by company name, because the letters turn up in too many abbreviations. Tape knows a few other names: `Google` for Alphabet, `P&G` for Procter & Gamble, `Facebook` for Meta.
 - The sources are English-language, so news on European stocks may be sparse.
+- The economic calendar has no actual figures; they arrive as FinancialJuice headlines. CNN's Fear & Greed Index refuses apps, so Tape shows the VIX instead. The CFTC figures are a week old when they come out. Reddit mention counts cover English-speaking forums; r/mauerstrassenwetten only appears through its posts.
 - Nothing in Tape is investment advice.
 
 ## Build it yourself
@@ -103,7 +111,7 @@ The tests in `app/src/test` cover parsing, matching, event detection, tone, pric
 
 ## Auf Deutsch
 
-Tape zeigt deine Aktien mit Kurs, Tagesverlauf und Änderung, pro Aktie eine Detailseite mit Chart und einer Einordnung der letzten Meldung in einem Satz, dazu Indizes aus Europa, den USA (mit Futures) und Asien, Gold, Öl, Bitcoin, EUR/USD und einen Live-Ticker. Was gerade handelt, steht oben. US-Aktien zeigen ihren vor- und nachbörslichen Kurs. Werktags gegen 9:25 Uhr fasst ein stiller Morgenüberblick zusammen, wie Europa gestartet ist. Ohne Werbung, ohne Konto, ohne Server. Eine Meldung zählt für eine Aktie, wenn die Schlagzeile Firma oder Symbol nennt. Laut wird es nur bei einer Kursbewegung ab ±5 % (einstellbar), bei Ereignissen wie Quartalszahlen, Übernahmen oder Führungswechseln und bei Marktmeldungen mit deinen Alarmwörtern, etwa Fed-Zinsentscheid oder Inflationsdaten. Dieselbe Meldung von mehreren Quellen klingelt nur einmal, jedes Alarmwort höchstens einmal pro Stunde. Nachts kommen Alarme ohne Ton. Die App ist auf Deutsch und Englisch, Download über [Tape.apk](https://github.com/BrickyStudios/tape/releases/latest/download/Tape.apk). Keine Anlageberatung.
+Tape zeigt deine Aktien mit Kurs, Tagesverlauf und Änderung, pro Aktie eine Detailseite mit Chart und einer Einordnung der letzten Meldung in einem Satz, dazu Indizes aus Europa, den USA (mit Futures) und Asien, Gold, Öl, Bitcoin, EUR/USD und einen Live-Ticker. Was gerade handelt, steht oben. US-Aktien zeigen ihren vor- und nachbörslichen Kurs. Werktags gegen 9:25 Uhr fasst ein stiller Morgenüberblick zusammen, wie Europa gestartet ist. Der Tab Termine zeigt die Quartalszahlen und Wirtschaftsdaten der Woche in Klartext, der Markt-Tab die Stimmung: den VIX, wie Fondsmanager und Hedgefonds laut US-Aufsicht CFTC positioniert sind, und die meistgenannten Aktien auf Reddit. Auf Wunsch kommen fundierte Beiträge aus r/wallstreetbets und r/mauerstrassenwetten dazu, ohne Memes. Ohne Werbung, ohne Konto, ohne Server. Eine Meldung zählt für eine Aktie, wenn die Schlagzeile Firma oder Symbol nennt. Laut wird es nur bei einer Kursbewegung ab ±5 % (einstellbar), bei Ereignissen wie Quartalszahlen, Übernahmen oder Führungswechseln und bei Marktmeldungen mit deinen Alarmwörtern, etwa Fed-Zinsentscheid oder Inflationsdaten. Dieselbe Meldung von mehreren Quellen klingelt nur einmal, jedes Alarmwort höchstens einmal pro Stunde. Nachts kommen Alarme ohne Ton. Die App ist auf Deutsch und Englisch, Download über [Tape.apk](https://github.com/BrickyStudios/tape/releases/latest/download/Tape.apk). Keine Anlageberatung.
 
 ## License
 

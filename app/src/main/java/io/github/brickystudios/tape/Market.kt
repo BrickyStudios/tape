@@ -52,7 +52,9 @@ val MARKET_GROUPS = mapOf(
 
 /** Gold, oil, bitcoin, euro: trade around the clock, always last. */
 val MARKET_OTHER = listOf("GC=F", "CL=F", "BTC-USD", "EURUSD=X")
-val MARKET = MARKET_GROUPS.values.flatten() + MARKET_OTHER
+/** The VIX, the US market's fear gauge: what MSW asked of its own app as "Fear & Greed" (CNN's index refuses apps). */
+const val VIX = "^VIX"
+val MARKET = MARKET_GROUPS.values.flatten() + MARKET_OTHER + VIX
 
 /** Name and plain-words subtitle of each market row, as string resources. */
 val MARKET_NAMES = mapOf(
@@ -63,6 +65,7 @@ val MARKET_NAMES = mapOf(
     "^N225" to (R.string.m_nikkei to R.string.m_nikkei_sub), "^HSI" to (R.string.m_hsi to R.string.m_hsi_sub), "000001.SS" to (R.string.m_shanghai to R.string.m_shanghai_sub),
     "GC=F" to (R.string.m_gold to R.string.m_gold_sub), "CL=F" to (R.string.m_oil to R.string.m_oil_sub),
     "BTC-USD" to (R.string.m_bitcoin to R.string.m_bitcoin_sub), "EURUSD=X" to (R.string.m_eurusd to R.string.m_eurusd_sub),
+    VIX to (R.string.m_vix to R.string.m_vix_sub),
 )
 
 /** A US stock's last trade outside the regular session, against the regular close before it. */

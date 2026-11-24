@@ -8,6 +8,7 @@ import android.content.Intent
 import android.os.Build
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -23,6 +24,7 @@ import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 import java.text.DateFormat
+import java.time.ZoneId
 import java.util.Date
 import java.util.concurrent.ConcurrentHashMap
 
@@ -43,6 +45,11 @@ object Wire {
     val market = MutableStateFlow<List<Quote>>(emptyList())
     val points = MutableStateFlow<Map<String, List<Double>>>(emptyMap())
     val ext = MutableStateFlow<Map<String, Ext>>(emptyMap())
+    val releases = MutableStateFlow<List<Indicator>>(emptyList())
+    val earnings = MutableStateFlow<List<Earning>>(emptyList())
+    val mentions = MutableStateFlow<List<Mention>>(emptyList())
+    val posts = MutableStateFlow<List<Post>>(emptyList())
+    val cot = MutableStateFlow<List<Cot>>(emptyList())
 
     /** The app is on screen: market rows every check, otherwise every 5 minutes (they never ring, and 17 rows cost data). */
     @Volatile var foreground = false
@@ -58,6 +65,11 @@ object Wire {
         market.value = s.market
         points.value = s.points
         ext.value = s.ext
+        releases.value = s.releases
+        earnings.value = s.earnings
+        mentions.value = s.mentions
+        posts.value = s.posts
+        cot.value = s.cot
         lastCheck.value = s.lastCheck
     }
 
@@ -96,15 +108,18 @@ object Wire {
         // Seeking Alpha knows US symbols only; "SAP.DE" or "ASML.AS" would just fail
         val perStock = if (stocks) favorites.flatMap { f -> listOfNotNull(async { stockNews(f) }, if ('.' in f.symbol) null else async { seekingAlpha(f) }) } else emptyList()
         // one price request for your stocks (and the market rows), the small day lines every 5 minutes with the stock news
-        val symbols = (favorites.map { it.symbol } + MARKET).distinct()
+        // the 5 most named on Reddit get prices too, like the MSW Daily App shows them with their move
+        val buzz = store.mentions.take(5).map { it.symbol }
+        val symbols = (favorites.map { it.symbol } + MARKET + buzz).distinct()
         val withMarket = stocks || foreground
+        val slow = slowSources(store, favorites, now, stocksNow)
         val prices = async { runCatching { (if (withMarket) symbols else favorites.map { it.symbol }).chunked(20).flatMap { c -> News.parseSpark(get(News.sparkUrl(c))) } } }
         val lines = if (stocks) async { runCatching { symbols.chunked(20).map { c -> get(Market.pointsUrl(c)) } } } else null
         val answers = (feeds + perStock).awaitAll()
         val all = prices.await()
         val fav = favorites.mapTo(HashSet()) { it.symbol }
         val priced = if (favorites.isEmpty()) null else all.map { q -> q.filter { it.symbol in fav } }
-        val marketGot = if (withMarket) all.getOrNull()?.filter { it.symbol in MARKET } else null
+        val marketGot = if (withMarket) all.getOrNull()?.filter { it.symbol in MARKET || it.symbol in buzz } else null
         val linesJson = lines?.await()?.getOrNull()
         val linesGot = linesJson?.fold(emptyMap<String, List<Double>>()) { m, j -> m + Market.parsePoints(j) }
         val extGot = linesJson?.fold(emptyMap<String, Ext>()) { m, j -> m + Market.parseExt(j) }
@@ -162,9 +177,48 @@ object Wire {
         if (store.tickerNote && tagged.any { it.wire }) Notify.wire(ctx, merged.filter { it.wire }.take(5))
         if (store.brief && marketGot != null) Market.briefDue(now, marketGot, store.briefDay)?.let { day ->
             store.briefDay = day
-            Notify.brief(ctx, marketGot, now)
+            Notify.brief(ctx, marketGot, now, store.releases, store.earnings, favorites)
         }
-        if (quiet || !store.squawk) emptyList() else Notify.spoken(events, market, moves)
+        val spoken = if (quiet || !store.squawk) emptyList() else Notify.spoken(events, market, moves)
+        // last: a slow archive must not hold back prices and alerts; if the 30 s run out, the slow ones simply try again later
+        if (slow.isNotEmpty()) store.status = store.status + slow.mapValues { (_, job) -> job.await().let { (ok, error) -> Check(now, if (ok) null else error) } }
+        spoken
+    }
+
+    const val CALENDAR = "ForexFactory calendar"
+    const val EARNINGS = "Yahoo Finance earnings"
+    const val APEWISDOM = "ApeWisdom (Reddit)"
+    const val ARCTIC = "Arctic Shift (Reddit)"
+    const val CFTC = "CFTC positioning"
+
+    /**
+     * The sources that change slowly, each on its own clock: calendar and earnings every 3 hours (5 minutes after a pull or a new stock),
+     * CFTC every 6 hours, Reddit every 30 minutes. Each saves its answer and reports (ok, error) for Setup's source list.
+     */
+    private fun CoroutineScope.slowSources(store: Store, favorites: List<Favorite>, now: Long, stocksNow: Boolean): Map<String, Deferred<Pair<Boolean, String?>>> {
+        val zone = ZoneId.systemDefault()
+        fun due(source: String, every: Long) = (now - store.last(source) >= every).also { if (it) store.last(source, now) }
+        fun <T> fetch(name: String, read: () -> T, save: (T) -> Unit) = name to async {
+            runCatching(read).fold({ save(it); true to null }, { false to reason(it) })
+        }
+        val jobs = mutableListOf<Pair<String, Deferred<Pair<Boolean, String?>>>>()
+        val agendaEvery = if (stocksNow) 5 * MINUTE else Agenda.INTERVAL
+        if (due(CALENDAR, agendaEvery)) jobs += fetch(CALENDAR, { Agenda.parseReleases(get(Agenda.RELEASES_URL)) }) { store.releases = it; releases.value = it }
+        if (due(EARNINGS, agendaEvery)) jobs += fetch(EARNINGS, {
+            val today = Agenda.dayStart(now, zone)
+            val popular = Agenda.parseEarnings(get(Agenda.weekUrl(today, Agenda.dayStart(now, zone, 7))))
+            val mine = if (favorites.isEmpty()) emptyList() else Agenda.parseEarnings(get(Agenda.stocksUrl(favorites.map { it.symbol }, today, Agenda.dayStart(now, zone, 60))))
+            (mine + popular).distinctBy { it.symbol to it.time }.sortedBy { it.time }
+        }) { store.earnings = it; earnings.value = it }
+        if (due(CFTC, Positioning.INTERVAL)) jobs += fetch(CFTC, { Positioning.parse(get(Positioning.URL)) }) { if (it.isNotEmpty()) { store.cot = it; cot.value = it } }
+        if (due(APEWISDOM, Reddit.INTERVAL)) jobs += fetch(APEWISDOM, { Reddit.parseMentions(get(Reddit.MENTIONS_URL)) }) { if (it.isNotEmpty()) { store.mentions = it; mentions.value = it } }
+        if (store.redditPosts && due(ARCTIC, Reddit.INTERVAL)) jobs += fetch(ARCTIC, {
+            // one after the other: the archive times out on parallel requests; one slow flair keeps the others
+            val got = Reddit.SOURCES.map { (sub, flair, days) -> runCatching { Reddit.parsePosts(get(Reddit.postsUrl(sub, flair, now, days))) } }
+            got.firstNotNullOfOrNull { it.exceptionOrNull() }?.takeIf { got.all { r -> r.isFailure } }?.let { throw it }
+            got.flatMap { it.getOrDefault(emptyList()) }
+        }) { if (it.isNotEmpty()) { store.posts = it; posts.value = it } }
+        return jobs.toMap()
     }
 
     /** Yahoo first; Google News when Yahoo refuses or has nothing. Each under its own key, so a switch does not ring. */

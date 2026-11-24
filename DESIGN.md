@@ -37,6 +37,7 @@ Roboto (system), monospace for symbols and clocks. Sizes: 28 sp page title and d
 ## Components
 
 - `QuoteRow`: name over company | today's line | price over `ChangeTag`. Used for stocks and market rows alike. A US stock outside the session adds `ExtLine` ("pre-market ▲ +0.3 %") under the whole row, so the day lines stay in one column.
+- Rows that carry no price stay on the same column grid: `ReleaseRow` and `EarningRow` (Dates tab) use the headline clock column; `VixRow` replaces the change tag with a word (calm, normal, nervous in neutral steps, panic in `Down`), because a rising VIX is fear, not a gain. `PositioningBlock` writes the CFTC numbers as two sentences, the group in weight 500. Emoji in Reddit titles are stripped on the way in.
 - `RegionHeader`: section label with the session in 13 sp ("Europe · open until 17:30"). Regions sort by what trades now.
 - `Sparkline` / chart: line in `Up` or `Down` by direction against yesterday's close (`Text2` when the move rounds to 0.0 %), the close dashed in `Text3`.
 - `HeadlineRow`: clock column, headline, meta line `SYMBOL · Event · ▲ rather positive · Source`.

@@ -59,7 +59,7 @@ import java.util.Date
  * what the latest event means, and every headline about it.
  */
 @Composable
-fun Detail(symbol: String, name: String, quote: Quote?, ext: Ext?, plain: Boolean, news: List<Item>, now: Long, threshold: Int, onBack: () -> Unit) {
+fun Detail(symbol: String, name: String, quote: Quote?, ext: Ext?, earning: Earning?, mention: Mention?, watched: Boolean, plain: Boolean, news: List<Item>, now: Long, threshold: Int, onBack: () -> Unit) {
     BackHandler(onBack = onBack)
     val ctx = LocalContext.current
     var range by remember(symbol) { mutableStateOf(Range.D1) }
@@ -163,8 +163,14 @@ fun Detail(symbol: String, name: String, quote: Quote?, ext: Ext?, plain: Boolea
                 Row { Figure(R.string.day_range, day, Modifier.weight(1f)); Figure(R.string.previous_close, prev, Modifier.weight(1f)) }
                 Row { Figure(R.string.year_range, year, Modifier.weight(1f)); Figure(R.string.volume, volume, Modifier.weight(1f)) }
             }
-            // indices have no news search and no price alert: only stocks get the assessment, the news and the alarm line
-            if (!plain) item {
+            if (earning != null || mention != null) item {
+                Column(Modifier.padding(top = 16.dp)) {
+                    if (earning != null) Figure(R.string.next_earnings, nextEarning(ctx, earning), Modifier)
+                    if (mention != null) Figure(R.string.reddit_title, stringResource(R.string.reddit_count, java.text.NumberFormat.getIntegerInstance().format(mention.mentions)) + "  ·  " + mentionTrend(mention), Modifier)
+                }
+            }
+            // indices and stocks off the watchlist have no news search and no price alert
+            if (watched) item {
                 Text(stringResource(R.string.assessment), style = SectionStyle, modifier = Modifier.padding(top = 32.dp, bottom = 8.dp))
                 if (event == null) {
                     Text(stringResource(R.string.no_event, symbol), style = MetaStyle, modifier = Modifier.padding(vertical = 8.dp))
@@ -188,19 +194,27 @@ fun Detail(symbol: String, name: String, quote: Quote?, ext: Ext?, plain: Boolea
                     }
                 }
             }
-            if (!plain) item { Text(stringResource(R.string.news), style = SectionStyle, modifier = Modifier.padding(top = 32.dp, bottom = 8.dp)) }
-            if (!plain && news.isEmpty()) item { Text(stringResource(R.string.no_news, symbol), style = MetaStyle, modifier = Modifier.padding(vertical = 8.dp)) }
+            if (watched) item { Text(stringResource(R.string.news), style = SectionStyle, modifier = Modifier.padding(top = 32.dp, bottom = 8.dp)) }
+            if (watched && news.isEmpty()) item { Text(stringResource(R.string.no_news, symbol), style = MetaStyle, modifier = Modifier.padding(vertical = 8.dp)) }
             items(news.take(30), key = { "n:" + it.id }) { HeadlineRow(it, now) }
-            if (!plain) item { Text(stringResource(R.string.alarm_at, threshold), style = MetaStyle.copy(color = Text3), modifier = Modifier.padding(top = 24.dp)) }
+            if (watched) item { Text(stringResource(R.string.alarm_at, threshold), style = MetaStyle.copy(color = Text3), modifier = Modifier.padding(top = 24.dp)) }
         }
     }
+}
+
+/** "Mon 1.12., 22:00, after the close · EPS est. 1.10" */
+private fun nextEarning(ctx: android.content.Context, e: Earning): String {
+    val day = java.text.SimpleDateFormat("EEE d.M.", java.util.Locale.getDefault()).format(Date(e.time))
+    val slot = slotText(ctx, e)
+    val time = if (slot != null) android.text.format.DateFormat.getTimeFormat(ctx).format(Date(e.time)) + ", " + slot else ctx.getString(R.string.slot_open)
+    return "$day $time" + (e.eps?.let { "  ·  " + ctx.getString(R.string.agenda_eps, String.format(java.util.Locale.getDefault(), "%.2f", it)) } ?: "")
 }
 
 @Composable
 private fun Figure(label: Int, value: String, modifier: Modifier) {
     Column(modifier.padding(vertical = 8.dp)) {
         Text(stringResource(label), style = MetaStyle)
-        Text(value, fontSize = 16.sp, color = Text1, style = Tnum, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(value, fontSize = 16.sp, color = Text1, style = Tnum, maxLines = 2, overflow = TextOverflow.Ellipsis)
     }
 }
 

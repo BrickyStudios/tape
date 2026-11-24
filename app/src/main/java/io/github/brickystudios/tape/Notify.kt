@@ -50,7 +50,7 @@ object Notify {
 
     /** The morning overview, silent: how Europe opened, where the US futures stand, how Asia closed. Opens the Market tab. */
     @SuppressLint("MissingPermission")
-    fun brief(ctx: Context, market: List<Quote>, now: Long) {
+    fun brief(ctx: Context, market: List<Quote>, now: Long, releases: List<Indicator>, earnings: List<Earning>, favorites: List<Favorite>) {
         val nm = NotificationManagerCompat.from(ctx)
         if (!nm.areNotificationsEnabled()) return
         channels(ctx)
@@ -59,7 +59,8 @@ object Notify {
         // big text, not inbox lines: those cut off after one line, and three indices do not fit
         val all = listOf(Region.EUROPE to listOf("^GDAXI", "^STOXX50E", "^FTSE"), Region.US to listOf("ES=F", "NQ=F"), Region.ASIA to listOf("^N225", "^HSI"))
             .map { (r, s) -> r to row(s) }.filter { it.second.isNotEmpty() }
-            .joinToString("\n") { (r, text) -> ctx.getString(r.label) + ":  " + text }
+            .joinToString("\n") { (r, text) -> ctx.getString(r.label) + ":  " + text } +
+            (todayLine(ctx, releases, earnings, favorites, now)?.let { "\n" + ctx.getString(R.string.today) + ":  " + it } ?: "")
         nm.notify(
             BRIEF_ID,
             base(ctx, BRIEF, now, app(ctx, 1), BRIEF_ID, quiet = true)

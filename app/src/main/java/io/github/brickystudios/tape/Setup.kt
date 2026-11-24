@@ -73,6 +73,7 @@ fun Setup(now: Long, onFavorites: (List<Favorite>) -> Unit) {
     var squawk by remember { mutableStateOf(store.squawk) }
     var brief by remember { mutableStateOf(store.brief) }
     var tickerNote by remember { mutableStateOf(store.tickerNote) }
+    var redditPosts by remember { mutableStateOf(store.redditPosts) }
     fun saveWords(v: List<String>) { words = v; store.words = v }
     fun addWord() {
         val w = Alerts.cleanWord(word)
@@ -176,6 +177,13 @@ fun Setup(now: Long, onFavorites: (List<Favorite>) -> Unit) {
         }
         item {
             Toggle(R.string.brief, stringResource(R.string.brief_note), brief) { brief = it; store.brief = it }
+        }
+        item {
+            Toggle(R.string.reddit_posts, stringResource(R.string.reddit_posts_note), redditPosts) {
+                redditPosts = it
+                store.redditPosts = it
+                if (it) { store.last(Wire.ARCTIC, 0); scope.launch { Wire.check(ctx) } }
+            }
         }
         item {
             Toggle(R.string.ticker_note, stringResource(R.string.ticker_note_note), tickerNote) {

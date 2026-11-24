@@ -121,6 +121,35 @@ class Store(ctx: Context) {
         }
         set(v) = p.edit().putString("status", JSONObject(v.mapValues { (_, c) -> JSONObject().put("t", c.time).put("e", c.error ?: "") }).toString()).apply()
 
+    var releases: List<Indicator>
+        get() = array("releases").map { Indicator(it.getString("ti"), it.getString("p"), it.getLong("t"), it.optString("f"), it.optString("pr")) }
+        set(v) = put("releases", v.map { JSONObject().put("ti", it.title).put("p", it.place).put("t", it.time).put("f", it.forecast).put("pr", it.previous) })
+
+    var earnings: List<Earning>
+        get() = array("earnings").map { Earning(it.getString("s"), it.optString("n"), it.getLong("t"), it.optString("sl"), it.optString("q"), if (it.has("e")) it.getDouble("e") else null, it.optLong("r")) }
+        set(v) = put("earnings", v.map { e -> JSONObject().put("s", e.symbol).put("n", e.name).put("t", e.time).put("sl", e.slot).put("q", e.quarter).put("r", e.rank).also { o -> e.eps?.let { o.put("e", it) } } })
+
+    var mentions: List<Mention>
+        get() = array("mentions").map { Mention(it.getString("s"), it.optString("n"), it.getInt("m"), it.optInt("b"), it.optInt("r")) }
+        set(v) = put("mentions", v.map { JSONObject().put("s", it.symbol).put("n", it.name).put("m", it.mentions).put("b", it.before).put("r", it.rank) })
+
+    var posts: List<Post>
+        get() = array("posts").map { Post(it.getString("i"), it.getString("u"), it.getString("ti"), it.optString("f"), it.optInt("sc"), it.optInt("c"), it.getLong("t")) }
+        set(v) = put("posts", v.map { JSONObject().put("i", it.id).put("u", it.sub).put("ti", it.title).put("f", it.flair).put("sc", it.score).put("c", it.comments).put("t", it.time) })
+
+    var cot: List<Cot>
+        get() = array("cot").map { Cot(it.getString("d"), it.getLong("m"), it.getLong("f")) }
+        set(v) = put("cot", v.map { JSONObject().put("d", it.date).put("m", it.managers).put("f", it.funds) })
+
+    /** When each slow source was last asked: calendar and CFTC every few hours, Reddit every 30 minutes. */
+    fun last(source: String) = p.getLong("last:$source", 0)
+    fun last(source: String, time: Long) = p.edit().putLong("last:$source", time).apply()
+
+    /** Setup's "Reddit posts": off by default, the posts come from a volunteer-run archive. */
+    var redditPosts: Boolean
+        get() = p.getBoolean("redditPosts", false)
+        set(v) = p.edit().putBoolean("redditPosts", v).apply()
+
     private fun array(key: String): List<JSONObject> {
         val a = runCatching { JSONArray(p.getString(key, "[]")) }.getOrDefault(JSONArray())
         return (0 until a.length()).map(a::getJSONObject)

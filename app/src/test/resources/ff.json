@@ -1,0 +1,50 @@
+[
+{
+"title": "Core PCE Price Index m/m",
+"country": "USD",
+"date": "2026-11-25T08:30:00-05:00",
+"impact": "High",
+"forecast": "0.3%",
+"previous": "0.3%"
+},
+{
+"title": "Prelim GDP q/q",
+"country": "USD",
+"date": "2026-11-25T08:30:00-05:00",
+"impact": "High",
+"forecast": "3.5%",
+"previous": "3.4%"
+},
+{
+"title": "German Flash Manufacturing PMI",
+"country": "EUR",
+"date": "2026-11-23T03:30:00-05:00",
+"impact": "Medium",
+"forecast": "54.1",
+"previous": "54.2"
+},
+{
+"title": "German Flash Services PMI",
+"country": "EUR",
+"date": "2026-11-23T03:30:00-05:00",
+"impact": "Medium",
+"forecast": "52.4",
+"previous": "51.7"
+},
+{
+"title": "CPI m/m",
+"country": "AUD",
+"date": "2026-11-24T19:30:00-05:00",
+"impact": "High",
+"forecast": "0.4%",
+"previous": "0.8%"
+},
+{
+"title": "FOMC Member Williams Speaks",
+"country": "USD",
+"date": "2026-11-23T16:00:00-05:00",
+"impact": "Low",
+"forecast": "",
+"previous": ""
+}
+]

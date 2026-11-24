@@ -112,6 +112,7 @@ private fun App(tab: MutableIntState, opened: MutableState<String?>) {
     val quotes by Wire.quotes.collectAsStateWithLifecycle()
     val market by Wire.market.collectAsStateWithLifecycle()
     val points by Wire.points.collectAsStateWithLifecycle()
+    val ext by Wire.ext.collectAsStateWithLifecycle()
     val store = remember { Store(ctx) }
     var favorites by remember { mutableStateOf(store.favorites) }
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -122,8 +123,9 @@ private fun App(tab: MutableIntState, opened: MutableState<String?>) {
     LifecycleResumeEffect(Unit) {
         now = System.currentTimeMillis()
         favorites = store.favorites
+        Wire.foreground = true
         val job = scope.launch { Squawk.say(ctx, Wire.check(ctx)) }
-        onPauseOrDispose { job.cancel(); markSeen(tab.intValue) }
+        onPauseOrDispose { Wire.foreground = false; job.cancel(); markSeen(tab.intValue) }
     }
     // leaving a tab marks what was on it as seen, so its count starts again from zero
     var shownTab by remember { mutableIntStateOf(tab.intValue) }
@@ -138,8 +140,6 @@ private fun App(tab: MutableIntState, opened: MutableState<String?>) {
     val byQuote = (quotes + market).associateBy { it.symbol }
     val pricesError = remember(checked) { store.status[Wire.PRICES]?.error }
     val status = statusLine(now, checked, checking)
-    val names = marketNames()
-    val subs = marketSubs()
     val words = remember(checked) { store.words }
     val wordTag = stringResource(R.string.alert_word_tag)
 
@@ -148,8 +148,9 @@ private fun App(tab: MutableIntState, opened: MutableState<String?>) {
         val fav = favorites.firstOrNull { it.symbol == detail }
         Detail(
             symbol = detail,
-            name = fav?.name ?: names[detail].orEmpty(),
+            name = fav?.name ?: MARKET_NAMES[detail]?.let { stringResource(it.first) }.orEmpty(),
             quote = byQuote[detail],
+            ext = ext[detail],
             plain = detail in MARKET,
             news = if (fav != null) watchlist.filter { detail in it.tickers } else emptyList(),
             now = now,
@@ -166,7 +167,7 @@ private fun App(tab: MutableIntState, opened: MutableState<String?>) {
                     if (pricesError != null) item { ErrorLine(pricesError) { tab.intValue = SETUP } }
                     if (favorites.isEmpty()) item { Text(stringResource(R.string.empty_watchlist), style = MetaStyle, modifier = Modifier.padding(vertical = 12.dp)) }
                     items(favorites, key = { "q:" + it.symbol }) { f ->
-                        QuoteRow(f.symbol, f.name, byQuote[f.symbol], points[f.symbol], plain = false, mono = true, stale = stale(byQuote[f.symbol], now)) { opened.value = f.symbol }
+                        QuoteRow(f.symbol, f.name, byQuote[f.symbol], points[f.symbol], plain = false, mono = true, stale = stale(f.symbol, byQuote[f.symbol], now), ext = ext[f.symbol]) { opened.value = f.symbol }
                     }
                     item {
                         Text(
@@ -189,9 +190,13 @@ private fun App(tab: MutableIntState, opened: MutableState<String?>) {
                 }
                 MARKET_TAB -> Page(stringResource(R.string.tab_market), status, pulled, { refresh() }) {
                     if (pricesError != null) item { ErrorLine(pricesError) { tab.intValue = SETUP } }
-                    items(MARKET, key = { "mk:" + it }) { s ->
-                        QuoteRow(names[s].orEmpty(), subs[s].orEmpty(), byQuote[s], points[s], plain = true, mono = false, stale = stale(byQuote[s], now)) { opened.value = s }
+                    // what trades now on top: Europe in the morning, the US in the afternoon, Asia at night
+                    Market.order(now).forEachIndexed { i, region ->
+                        item(key = "rg:" + region) { RegionHeader(region, now, first = i == 0) }
+                        items(MARKET_GROUPS.getValue(region), key = { "mk:" + it }) { s -> MarketRow(s, byQuote[s], points[s], now) { opened.value = s } }
                     }
+                    item { Section(R.string.region_other) }
+                    items(MARKET_OTHER, key = { "mk:" + it }) { s -> MarketRow(s, byQuote[s], points[s], now) { opened.value = s } }
                     item { Section(R.string.ticker) }
                     if (wire.isEmpty()) item { Text(stringResource(R.string.empty_news), style = MetaStyle, modifier = Modifier.padding(vertical = 12.dp)) }
                     items(wire.take(60), key = { "w:" + it.id }) { i -> HeadlineRow(i, now, Alerts.alertWord(i.title, words)?.let { "$wordTag $it" }) }
@@ -229,27 +234,19 @@ private fun ErrorLine(error: String, onClick: () -> Unit) {
     )
 }
 
-/** "Price from 14:02" when the market is open but the price is over 15 minutes old. */
+/** "Price from 14:02" when the stock's market is open but the price is over 30 minutes old (Yahoo's European prices lag 15). */
 @Composable
-private fun stale(q: Quote?, now: Long): String? {
-    if (q == null || Market.status(now) != MarketStatus.OPEN || now - q.time < 15 * MINUTE) return null
+private fun stale(symbol: String, q: Quote?, now: Long): String? {
+    val region = q?.let { Market.region(symbol, it.zone) } ?: return null
+    if (Market.status(region, now) != MarketStatus.OPEN || now - q.time < 30 * MINUTE) return null
     return stringResource(R.string.price_from, clock(LocalContext.current, q.time, now))
 }
 
 @Composable
-private fun marketNames(): Map<String, String> = mapOf(
-    "^GSPC" to stringResource(R.string.m_sp500), "^IXIC" to stringResource(R.string.m_nasdaq), "^DJI" to stringResource(R.string.m_dow),
-    "^GDAXI" to stringResource(R.string.m_dax), "GC=F" to stringResource(R.string.m_gold), "CL=F" to stringResource(R.string.m_oil),
-    "BTC-USD" to stringResource(R.string.m_bitcoin), "EURUSD=X" to stringResource(R.string.m_eurusd),
-)
-
-/** What each market row measures, in plain words instead of Yahoo's codes. */
-@Composable
-private fun marketSubs(): Map<String, String> = mapOf(
-    "^GSPC" to stringResource(R.string.m_sp500_sub), "^IXIC" to stringResource(R.string.m_nasdaq_sub), "^DJI" to stringResource(R.string.m_dow_sub),
-    "^GDAXI" to stringResource(R.string.m_dax_sub), "GC=F" to stringResource(R.string.m_gold_sub), "CL=F" to stringResource(R.string.m_oil_sub),
-    "BTC-USD" to stringResource(R.string.m_bitcoin_sub), "EURUSD=X" to stringResource(R.string.m_eurusd_sub),
-)
+private fun MarketRow(symbol: String, quote: Quote?, points: List<Double>?, now: Long, onClick: () -> Unit) {
+    val (name, sub) = MARKET_NAMES.getValue(symbol)
+    QuoteRow(stringResource(name), stringResource(sub), quote, points, plain = true, mono = false, stale = stale(symbol, quote, now), onClick = onClick)
+}
 
 /** Three tabs; one that is not open shows how many headlines came since you last looked, in amber like a fresh clock. */
 @Composable

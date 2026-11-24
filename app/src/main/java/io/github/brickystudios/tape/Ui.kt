@@ -168,7 +168,8 @@ fun Sparkline(points: List<Double>?, previousClose: Double?, modifier: Modifier 
         val hi = maxOf(p.max(), previousClose ?: p.max())
         val span = (hi - lo).takeIf { it > 0 } ?: 1.0
         fun y(v: Double) = (size.height * (1 - (v - lo) / span)).toFloat()
-        val color = if (p.last() >= (previousClose ?: p.first())) Up else Down
+        val base = previousClose ?: p.first()
+        val color = if (flat((p.last() - base) / base * 100)) Text2 else if (p.last() > base) Up else Down
         previousClose?.let { pc ->
             drawLine(Text3, Offset(0f, y(pc)), Offset(size.width, y(pc)), strokeWidth = 1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(4f, 4f)))
         }
@@ -189,48 +190,111 @@ fun priceText(q: Quote, plain: Boolean) = if (plain) Market.number(q.price) else
  * TalkBack reads it as one sentence: "NVIDIA, 165,05 $, ▲ +31,5 %".
  */
 @Composable
-fun QuoteRow(title: String, subtitle: String, quote: Quote?, points: List<Double>?, plain: Boolean, mono: Boolean, stale: String?, onClick: (() -> Unit)?) {
+fun QuoteRow(title: String, subtitle: String, quote: Quote?, points: List<Double>?, plain: Boolean, mono: Boolean, stale: String?, ext: Ext? = null, onClick: (() -> Unit)?) {
     val change = quote?.change
+    val after = ext?.takeIf { quote != null && it.time > quote.time }
     val price = quote?.let { priceText(it, plain) } ?: "—"
-    val spoken = "$subtitle $title, $price, " + (change?.let { (if (it >= 0) "▲ " else "▼ ") + percent(it) } ?: "")
-    Row(
-        Modifier.fillMaxWidth().heightIn(min = 72.dp)
+    val extLabel = after?.let { stringResource(if (it.pre) R.string.ext_pre else R.string.ext_after) + " " + percent(it.change) }.orEmpty()
+    val spoken = "$subtitle $title, $price, " + (change?.let { (if (it >= 0) "▲ " else "▼ ") + percent(it) } ?: "") + " $extLabel"
+    Column(
+        Modifier.fillMaxWidth()
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
             .semantics(mergeDescendants = true) { contentDescription = spoken }
             .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
+        horizontalAlignment = Alignment.End,
     ) {
-        Column(Modifier.weight(1f)) {
-            Text(title, fontSize = 16.sp, color = Text1, fontFamily = if (mono) FontFamily.Monospace else FontFamily.Default, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(subtitle, style = MetaStyle, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Row(Modifier.fillMaxWidth().heightIn(min = 56.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(title, fontSize = 16.sp, color = Text1, fontFamily = if (mono) FontFamily.Monospace else FontFamily.Default, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(subtitle, style = MetaStyle, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            Sparkline(points, quote?.previousClose, Modifier.width(72.dp).height(28.dp))
+            Spacer(Modifier.width(16.dp))
+            Column(Modifier.widthIn(min = 96.dp), horizontalAlignment = Alignment.End) {
+                Text(price, fontSize = 16.sp, color = Text1, style = Tnum, maxLines = 1)
+                Spacer(Modifier.height(4.dp))
+                if (stale != null) Text(stale, style = MetaStyle.copy(color = Text3), maxLines = 1) else ChangeTag(change)
+            }
         }
-        Sparkline(points, quote?.previousClose, Modifier.width(72.dp).height(28.dp))
-        Spacer(Modifier.width(16.dp))
-        Column(Modifier.widthIn(min = 96.dp), horizontalAlignment = Alignment.End) {
-            Text(price, fontSize = 16.sp, color = Text1, style = Tnum, maxLines = 1)
-            Spacer(Modifier.height(4.dp))
-            if (stale != null) Text(stale, style = MetaStyle.copy(color = Text3), maxLines = 1) else ChangeTag(change)
-        }
+        // under the whole row, so it does not push the day line aside
+        if (after != null) ExtLine(after)
     }
     HorizontalDivider(color = Hairline)
 }
 
-/** "US market open · checked 15:42", the line under every page title. */
+/** "Europe open · US pre-market · checked 10:12", the line under every page title. What trades now comes first. */
 @Composable
 fun statusLine(now: Long, checked: Long, checking: Boolean): String {
     val ctx = LocalContext.current
-    val market = stringResource(
-        when (Market.status(now)) {
-            MarketStatus.OPEN -> R.string.market_open
-            MarketStatus.PRE -> R.string.market_pre
-            MarketStatus.AFTER -> R.string.market_after
-            MarketStatus.CLOSED -> R.string.market_closed
-        },
-    )
+    val market = Market.order(now).mapNotNull { r ->
+        when (Market.status(r, now)) {
+            MarketStatus.OPEN -> ctx.getString(R.string.region_open, ctx.getString(r.label))
+            MarketStatus.PRE -> ctx.getString(R.string.market_pre)
+            MarketStatus.AFTER -> ctx.getString(R.string.market_after)
+            MarketStatus.CLOSED -> null
+        }
+    }.joinToString("  ·  ").ifEmpty { ctx.getString(R.string.markets_closed) }
     val check = when {
         checking -> stringResource(R.string.checking)
         checked > 0 -> stringResource(R.string.checked, clock(ctx, checked, now))
         else -> return market
     }
     return "$market  ·  $check"
+}
+
+/** "Europe open" or "US pre-market" for one price, by where it trades; null for futures, currencies and crypto. */
+fun regionStatus(ctx: Context, region: Region?, now: Long): String? {
+    region ?: return null
+    return when (Market.status(region, now)) {
+        MarketStatus.OPEN -> ctx.getString(R.string.region_open, ctx.getString(region.label))
+        MarketStatus.PRE -> ctx.getString(R.string.market_pre)
+        MarketStatus.AFTER -> ctx.getString(R.string.market_after)
+        MarketStatus.CLOSED -> ctx.getString(R.string.region_closed, ctx.getString(region.label))
+    }
+}
+
+/** "15:30" today, "Wed 09:00" on another day, in the phone's time. */
+fun whenText(ctx: Context, time: Long, now: Long): String {
+    val t = DateFormat.getTimeFormat(ctx).format(Date(time))
+    val sameDay = SimpleDateFormat("yyyyMMdd", Locale.ROOT).run { format(Date(time)) == format(Date(now)) }
+    return if (sameDay) t else SimpleDateFormat("EEE", Locale.getDefault()).format(Date(time)) + " " + t
+}
+
+/** "Europe · open until 17:30": the region's name, and in amber while it trades. */
+@Composable
+fun RegionHeader(region: Region, now: Long, first: Boolean) {
+    val ctx = LocalContext.current
+    val at = whenText(ctx, Market.nextChange(region, now), now)
+    val st = Market.status(region, now)
+    val note = stringResource(
+        when (st) {
+            MarketStatus.OPEN -> R.string.region_open_until
+            MarketStatus.PRE -> R.string.region_pre_note
+            MarketStatus.AFTER -> R.string.region_after_note
+            MarketStatus.CLOSED -> R.string.region_opens
+        },
+        at,
+    )
+    Text(
+        buildAnnotatedString {
+            append(stringResource(region.label))
+            withStyle(SpanStyle(color = if (st == MarketStatus.OPEN) Amber else Text3, fontWeight = FontWeight.Normal, fontSize = 13.sp)) { append("  ·  $note") }
+        },
+        style = SectionStyle,
+        modifier = Modifier.padding(top = if (first) 8.dp else 32.dp, bottom = 8.dp),
+    )
+}
+
+/** "pre-market ▲ +0.3 %" under a US stock's price before the open and after the close, when that trade is newer than the close. */
+@Composable
+fun ExtLine(ext: Ext) {
+    val color = if (flat(ext.change)) Text2 else if (ext.change > 0) Up else Down
+    Text(
+        buildAnnotatedString {
+            append(stringResource(if (ext.pre) R.string.ext_pre else R.string.ext_after) + " ")
+            withStyle(SpanStyle(color = color)) { append((if (flat(ext.change)) "" else if (ext.change > 0) "▲ " else "▼ ") + percent(ext.change)) }
+        },
+        style = MetaStyle.copy(color = Text3).merge(Tnum),
+        maxLines = 1,
+    )
 }

@@ -45,14 +45,17 @@ object Alerts {
     /** "3 Growth Stocks To Watch", "5 Best ...": lists that mention a stock in passing. */
     private val LISTICLE = rx("""^\d+\s.*\b(stocks|reasons|things|ways|picks)\b""")
 
+    /** "Apple vs. Broadcom: Comparing Revenue Trends" is opinion; "Epic vs. Apple: judge rules" is not, so it needs a comparing word. */
+    private val VERSUS = rx("""\bvs\.?\s.*\b(which|better|comparing|compared?|buy)\b""")
+
     /**
-     * The event a headline reports, or null. Questions ("Can Revenues Accelerate?") and lists are opinion, even with an event word.
+     * The event a headline reports, or null. Questions ("Can Revenues Accelerate?"), lists and comparisons are opinion, even with an event word.
      * Measured on 80 Yahoo results for 8 stocks: most noise was listicles, questions and market wraps.
      */
     fun kind(title: String, source: String): Kind? {
         if (source.trim().lowercase() in RELEASE_WIRES) return Kind.RELEASE
         val t = title.trim()
-        if (t.endsWith("?") || LISTICLE.containsMatchIn(t)) return null
+        if (t.endsWith("?") || LISTICLE.containsMatchIn(t) || VERSUS.containsMatchIn(t)) return null
         return KINDS.firstOrNull { it.second.containsMatchIn(t) }?.first
     }
 

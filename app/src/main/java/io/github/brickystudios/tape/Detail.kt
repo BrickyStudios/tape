@@ -59,7 +59,7 @@ import java.util.Date
  * what the latest event means, and every headline about it.
  */
 @Composable
-fun Detail(symbol: String, name: String, quote: Quote?, plain: Boolean, news: List<Item>, now: Long, threshold: Int, onBack: () -> Unit) {
+fun Detail(symbol: String, name: String, quote: Quote?, ext: Ext?, plain: Boolean, news: List<Item>, now: Long, threshold: Int, onBack: () -> Unit) {
     BackHandler(onBack = onBack)
     val ctx = LocalContext.current
     var range by remember(symbol) { mutableStateOf(Range.D1) }
@@ -72,23 +72,19 @@ fun Detail(symbol: String, name: String, quote: Quote?, plain: Boolean, news: Li
     fun fmt(v: Double) = if (plain || currency.isEmpty()) Market.number(v) else Market.money(v, currency)
 
     val event = news.firstNotNullOfOrNull { i -> Alerts.kind(i.title, i.source)?.let { i to it } }
-    val status = stringResource(
-        when (Market.status(now)) {
-            MarketStatus.OPEN -> R.string.market_open
-            MarketStatus.PRE -> R.string.market_pre
-            MarketStatus.AFTER -> R.string.market_after
-            MarketStatus.CLOSED -> R.string.market_closed
-        },
-    )
+    val status = regionStatus(ctx, quote?.let { Market.region(symbol, it.zone) }, now).orEmpty()
+    val after = ext?.takeIf { quote != null && it.time > quote.time }
+    val row = MARKET_NAMES[symbol]
 
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().height(56.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back), tint = Text1) }
-            Text(symbol, fontSize = 16.sp, fontFamily = FontFamily.Monospace, color = Text1)
+            // market rows by their name ("DAX"), not Yahoo's code ("^GDAXI")
+            Text(row?.let { stringResource(it.first) } ?: symbol, fontSize = 16.sp, fontFamily = if (row == null) FontFamily.Monospace else FontFamily.Default, color = Text1)
         }
         LazyColumn(Modifier.fillMaxSize().padding(horizontal = 20.dp), contentPadding = PaddingValues(bottom = 32.dp)) {
             item {
-                Text((c?.name ?: name).ifEmpty { symbol }, fontSize = 16.sp, color = Text1, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(row?.let { stringResource(it.second) } ?: (c?.name ?: name).ifEmpty { symbol }, fontSize = 16.sp, color = Text1, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text(listOf(c?.exchange.orEmpty(), currency, status).filter { it.isNotEmpty() }.joinToString("  ·  "), style = MetaStyle)
                 Spacer(Modifier.height(16.dp))
                 // the finger on the chart replaces price and change with that moment's value
@@ -106,6 +102,16 @@ fun Detail(symbol: String, name: String, quote: Quote?, plain: Boolean, news: Li
                         ChangeTag(quote?.change)
                         Spacer(Modifier.size(8.dp))
                         Text(stringResource(R.string.since_close), style = MetaStyle)
+                    }
+                }
+                if (s == null && after != null) {
+                    Spacer(Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(stringResource(if (after.pre) R.string.ext_pre else R.string.ext_after) + "  " + fmt(after.price), style = MetaStyle.copy(color = Text1).merge(Tnum))
+                        Spacer(Modifier.size(8.dp))
+                        ChangeTag(after.change)
+                        Spacer(Modifier.size(8.dp))
+                        Text(clock(ctx, after.time, now), style = MetaStyle)
                     }
                 }
                 Spacer(Modifier.height(16.dp))
@@ -157,7 +163,8 @@ fun Detail(symbol: String, name: String, quote: Quote?, plain: Boolean, news: Li
                 Row { Figure(R.string.day_range, day, Modifier.weight(1f)); Figure(R.string.previous_close, prev, Modifier.weight(1f)) }
                 Row { Figure(R.string.year_range, year, Modifier.weight(1f)); Figure(R.string.volume, volume, Modifier.weight(1f)) }
             }
-            item {
+            // indices have no news search and no price alert: only stocks get the assessment, the news and the alarm line
+            if (!plain) item {
                 Text(stringResource(R.string.assessment), style = SectionStyle, modifier = Modifier.padding(top = 32.dp, bottom = 8.dp))
                 if (event == null) {
                     Text(stringResource(R.string.no_event, symbol), style = MetaStyle, modifier = Modifier.padding(vertical = 8.dp))
@@ -181,10 +188,10 @@ fun Detail(symbol: String, name: String, quote: Quote?, plain: Boolean, news: Li
                     }
                 }
             }
-            item { Text(stringResource(R.string.news), style = SectionStyle, modifier = Modifier.padding(top = 32.dp, bottom = 8.dp)) }
-            if (news.isEmpty()) item { Text(stringResource(R.string.no_news, symbol), style = MetaStyle, modifier = Modifier.padding(vertical = 8.dp)) }
+            if (!plain) item { Text(stringResource(R.string.news), style = SectionStyle, modifier = Modifier.padding(top = 32.dp, bottom = 8.dp)) }
+            if (!plain && news.isEmpty()) item { Text(stringResource(R.string.no_news, symbol), style = MetaStyle, modifier = Modifier.padding(vertical = 8.dp)) }
             items(news.take(30), key = { "n:" + it.id }) { HeadlineRow(it, now) }
-            item { Text(stringResource(R.string.alarm_at, threshold), style = MetaStyle.copy(color = Text3), modifier = Modifier.padding(top = 24.dp)) }
+            if (!plain) item { Text(stringResource(R.string.alarm_at, threshold), style = MetaStyle.copy(color = Text3), modifier = Modifier.padding(top = 24.dp)) }
         }
     }
 }

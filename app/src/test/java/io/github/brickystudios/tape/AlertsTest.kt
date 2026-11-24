@@ -36,6 +36,8 @@ class AlertsTest {
         assertNull(Alerts.kind("Prediction: Here's What a \$5,000 Investment in Nvidia Stock Today Will Be Worth", "Motley Fool"))
         assertNull(Alerts.kind("PayPal's Member Base Rises: Can Revenues Accelerate?", "Zacks"))
         assertNull(Alerts.kind("3 Growth Stocks To Watch With Earnings Growth Up To 81%", "Simply Wall St"))
+        assertNull(Alerts.kind("Apple vs. Broadcom: Comparing Revenue Trends Amid the Artificial Intelligence Boom", "Motley Fool"))
+        assertEquals(Kind.LEGAL, Alerts.kind("Epic vs. Apple: judge orders new probe of App Store fees", "Reuters"))
         assertNull(Alerts.kind("Nvidia CEO says demand is strong", "Reuters"))
         assertNull(Alerts.kind("Stock Market Today: Nasdaq rises with Nvidia", "IBD"))
     }

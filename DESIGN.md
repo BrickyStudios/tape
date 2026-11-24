@@ -20,7 +20,7 @@ The tokens live in `app/src/main/java/io/github/brickystudios/tape/Ui.kt`. This 
 | `Text2` | `#A1A1A6` | company names, meta lines |
 | `Text3` | `#85858B` | old clocks, hints, dashed previous-close line (4.9:1 on Ink) |
 | `Hairline` | `Text1` at 8 % | row dividers |
-| `Amber` | `#F2A93B` | fresh clocks, new-item counts, the primary action ("Add stock", "Search") |
+| `Amber` | `#F2A93B` | fresh clocks, new-item counts, a market that trades right now ("open until 17:30"), the primary action ("Add stock", "Search") |
 | `Up` | `#7CC45A` | price up and "rather positive" only (OKLCH hue 137, away from teal) |
 | `Down` | `#E5484D` | price down, "rather negative" and source errors only |
 
@@ -36,7 +36,8 @@ Roboto (system), monospace for symbols and clocks. Sizes: 28 sp page title and d
 
 ## Components
 
-- `QuoteRow`: name over company | today's line | price over `ChangeTag`. Used for stocks and market rows alike.
-- `Sparkline` / chart: line in `Up` or `Down` by direction against yesterday's close, the close dashed in `Text3`.
+- `QuoteRow`: name over company | today's line | price over `ChangeTag`. Used for stocks and market rows alike. A US stock outside the session adds `ExtLine` ("pre-market ▲ +0.3 %") under the whole row, so the day lines stay in one column.
+- `RegionHeader`: section label with the session in 13 sp ("Europe · open until 17:30"). Regions sort by what trades now.
+- `Sparkline` / chart: line in `Up` or `Down` by direction against yesterday's close (`Text2` when the move rounds to 0.0 %), the close dashed in `Text3`.
 - `HeadlineRow`: clock column, headline, meta line `SYMBOL · Event · ▲ rather positive · Source`.
 - `Title`: page title with the market status and last check in monospace below.

@@ -1,0 +1,6 @@
+{"spark":{"result":[
+{"symbol":"AAPL","response":[{"meta":{"symbol":"AAPL","regularMarketPrice":102.0,"tradingPeriods":{"pre":[[{"start":500,"end":1000}]],"regular":[[{"start":1000,"end":2000}]],"post":[[{"start":2000,"end":3000}]]}},"timestamp":[900,1000,1500,1995,2100],"indicators":{"quote":[{"close":[99.0,100.0,101.0,102.0,103.0]}]}}]},
+{"symbol":"PRE","response":[{"meta":{"symbol":"PRE","regularMarketPrice":49.0,"tradingPeriods":{"pre":[[{"start":500,"end":1000}]],"regular":[[{"start":1000,"end":2000}]],"post":[[{"start":2000,"end":3000}]]}},"timestamp":[500,600],"indicators":{"quote":[{"close":[50.0,51.0]}]}}]},
+{"symbol":"MID","response":[{"meta":{"symbol":"MID","regularMarketPrice":10.0,"tradingPeriods":{"pre":[[{"start":500,"end":1000}]],"regular":[[{"start":1000,"end":2000}]],"post":[[{"start":2000,"end":3000}]]}},"timestamp":[900,1000,1100],"indicators":{"quote":[{"close":[9.0,9.5,10.0]}]}}]},
+{"symbol":"^GDAXI","response":[{"meta":{"symbol":"^GDAXI","regularMarketPrice":25310.0,"tradingPeriods":[[{"start":1000,"end":2000}]]},"timestamp":[1000,1300],"indicators":{"quote":[{"close":[25300.0,25310.0]}]}}]}
+],"error":null}}

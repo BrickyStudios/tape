@@ -32,8 +32,10 @@ object Notify {
     private const val STOCKS = "stocks"
     private const val MARKET = "market"
     private const val WIRE = "wire"
+    private const val BRIEF = "brief"
     private const val WIRE_ID = 1
     private const val MARKET_ID = 2
+    private const val BRIEF_ID = 3
     const val EXTRA_TAB = "tab"
     const val EXTRA_SYMBOL = "symbol"
 
@@ -43,6 +45,29 @@ object Notify {
         nm.createNotificationChannel(NotificationChannel(STOCKS, ctx.getString(R.string.channel_stocks), NotificationManager.IMPORTANCE_HIGH))
         nm.createNotificationChannel(NotificationChannel(MARKET, ctx.getString(R.string.channel_market), NotificationManager.IMPORTANCE_HIGH))
         nm.createNotificationChannel(NotificationChannel(WIRE, ctx.getString(R.string.channel_wire), NotificationManager.IMPORTANCE_LOW))
+        nm.createNotificationChannel(NotificationChannel(BRIEF, ctx.getString(R.string.channel_brief), NotificationManager.IMPORTANCE_LOW))
+    }
+
+    /** The morning overview, silent: how Europe opened, where the US futures stand, how Asia closed. Opens the Market tab. */
+    @SuppressLint("MissingPermission")
+    fun brief(ctx: Context, market: List<Quote>, now: Long) {
+        val nm = NotificationManagerCompat.from(ctx)
+        if (!nm.areNotificationsEnabled()) return
+        channels(ctx)
+        val by = market.associateBy { it.symbol }
+        fun row(symbols: List<String>) = symbols.mapNotNull { s -> by[s]?.let { ctx.getString(MARKET_NAMES.getValue(s).first) + " " + percent(it.change) } }.joinToString("  ·  ")
+        // big text, not inbox lines: those cut off after one line, and three indices do not fit
+        val all = listOf(Region.EUROPE to listOf("^GDAXI", "^STOXX50E", "^FTSE"), Region.US to listOf("ES=F", "NQ=F"), Region.ASIA to listOf("^N225", "^HSI"))
+            .map { (r, s) -> r to row(s) }.filter { it.second.isNotEmpty() }
+            .joinToString("\n") { (r, text) -> ctx.getString(r.label) + ":  " + text }
+        nm.notify(
+            BRIEF_ID,
+            base(ctx, BRIEF, now, app(ctx, 1), BRIEF_ID, quiet = true)
+                .setContentTitle(ctx.getString(R.string.brief_title))
+                .setContentText(row(listOf("^GDAXI", "ES=F", "^N225")))
+                .setStyle(NotificationCompat.BigTextStyle().bigText(all))
+                .build(),
+        )
     }
 
     /**

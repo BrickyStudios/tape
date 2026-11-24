@@ -71,6 +71,7 @@ fun Setup(now: Long, onFavorites: (List<Favorite>) -> Unit) {
     var wordNote by remember { mutableStateOf<Int?>(null) }
     var quietNights by remember { mutableStateOf(store.quiet) }
     var squawk by remember { mutableStateOf(store.squawk) }
+    var brief by remember { mutableStateOf(store.brief) }
     fun saveWords(v: List<String>) { words = v; store.words = v }
     fun addWord() {
         val w = Alerts.cleanWord(word)
@@ -118,7 +119,7 @@ fun Setup(now: Long, onFavorites: (List<Favorite>) -> Unit) {
         item { Field(query, { query = it }, R.string.add_hint, R.string.search, KeyboardType.Text) { search() } }
         lookupNote?.let { item { Note(it) } }
         items(found, key = { "found:" + it.symbol }) { f ->
-            Line(f.symbol, f.name, action = stringResource(R.string.add), accent = true) {
+            Line(f.symbol, listOf(f.name, f.exchange).filter { it.isNotEmpty() }.joinToString("  ·  "), action = stringResource(R.string.add), accent = true) {
                 saveFavorites(favorites + f)
                 found = emptyList()
                 query = ""
@@ -126,9 +127,9 @@ fun Setup(now: Long, onFavorites: (List<Favorite>) -> Unit) {
             }
         }
         items(favorites, key = { "fav:" + it.symbol }) { f ->
-            Line(f.symbol, f.name, action = stringResource(R.string.remove)) {
+            Line(f.symbol, listOf(f.name, f.exchange).filter { it.isNotEmpty() }.joinToString("  ·  "), action = stringResource(R.string.remove)) {
                 saveFavorites(favorites - f)
-                store.primed = store.primed - "stock:${f.symbol}" - "google:${f.symbol}" - "price:${f.symbol}" // re-adding it later fills quietly again
+                store.primed = store.primed - "stock:${f.symbol}" - "google:${f.symbol}" - "sa:${f.symbol}" - "price:${f.symbol}" // re-adding it later fills quietly again
             }
         }
 
@@ -171,6 +172,9 @@ fun Setup(now: Long, onFavorites: (List<Favorite>) -> Unit) {
         }
         item {
             Toggle(R.string.squawk, stringResource(R.string.squawk_note), squawk) { squawk = it; store.squawk = it }
+        }
+        item {
+            Toggle(R.string.brief, stringResource(R.string.brief_note), brief) { brief = it; store.brief = it }
         }
 
         item { Section(R.string.section_feeds) }

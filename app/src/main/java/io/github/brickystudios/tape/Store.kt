@@ -11,8 +11,8 @@ class Store(ctx: Context) {
     private val p = ctx.getSharedPreferences("tape", Context.MODE_PRIVATE)
 
     var favorites: List<Favorite>
-        get() = array("favorites").map { Favorite(it.getString("s"), it.optString("n")) }
-        set(v) = put("favorites", v.map { JSONObject().put("s", it.symbol).put("n", it.name) })
+        get() = array("favorites").map { Favorite(it.getString("s"), it.optString("n"), it.optString("x")) }
+        set(v) = put("favorites", v.map { JSONObject().put("s", it.symbol).put("n", it.name).put("x", it.exchange) })
 
     var feeds: List<Feed>
         get() = if (!p.contains("feeds")) News.DEFAULT_FEEDS
@@ -61,6 +61,22 @@ class Store(ctx: Context) {
             o.keys().asSequence().associateWith { k -> o.getJSONArray(k).let { a -> (0 until a.length()).map(a::getDouble) } }
         }
         set(v) = p.edit().putString("points", JSONObject(v.mapValues { JSONArray(it.value) }).toString()).apply()
+
+    /** US stocks' last pre-market or after-hours trade, replaced with every 5-minute check. */
+    var ext: Map<String, Ext>
+        get() = runCatching { JSONObject(p.getString("ext", "{}")!!) }.getOrDefault(JSONObject()).let { o ->
+            o.keys().asSequence().associateWith { k -> o.getJSONObject(k).let { Ext(it.getDouble("p"), it.getDouble("b"), it.getLong("t"), it.getBoolean("pre")) } }
+        }
+        set(v) = p.edit().putString("ext", JSONObject(v.mapValues { (_, e) -> JSONObject().put("p", e.price).put("b", e.base).put("t", e.time).put("pre", e.pre) }).toString()).apply()
+
+    var brief: Boolean
+        get() = p.getBoolean("brief", true)
+        set(v) = p.edit().putBoolean("brief", v).apply()
+
+    /** The Frankfurt day of the last morning overview, "2026-11-24". */
+    var briefDay: String
+        get() = p.getString("briefDay", "")!!
+        set(v) = p.edit().putString("briefDay", v).apply()
 
     /** Highest price step that rang, by [Alerts.stepKey]. */
     var rung: Map<String, Int>

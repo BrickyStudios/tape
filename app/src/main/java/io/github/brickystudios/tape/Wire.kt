@@ -42,6 +42,10 @@ object Wire {
     val quotes = MutableStateFlow<List<Quote>>(emptyList())
     val market = MutableStateFlow<List<Quote>>(emptyList())
     val points = MutableStateFlow<Map<String, List<Double>>>(emptyMap())
+    val ext = MutableStateFlow<Map<String, Ext>>(emptyMap())
+
+    /** The app is on screen: market rows every check, otherwise every 5 minutes (they never ring, and 17 rows cost data). */
+    @Volatile var foreground = false
     val lastCheck = MutableStateFlow(0L)
     val checking = MutableStateFlow(false)
     private val lock = Mutex()
@@ -53,6 +57,7 @@ object Wire {
         quotes.value = s.quotes
         market.value = s.market
         points.value = s.points
+        ext.value = s.ext
         lastCheck.value = s.lastCheck
     }
 
@@ -88,17 +93,21 @@ object Wire {
                 Answer(f.url, r.getOrNull(), listOf(f.name to r.exceptionOrNull()?.let(::reason)))
             }
         }
-        val perStock = if (stocks) favorites.flatMap { f -> listOf(async { stockNews(f) }, async { seekingAlpha(f) }) } else emptyList()
-        // one price request for your stocks and the market rows, the small day lines every 5 minutes with the stock news
+        // Seeking Alpha knows US symbols only; "SAP.DE" or "ASML.AS" would just fail
+        val perStock = if (stocks) favorites.flatMap { f -> listOfNotNull(async { stockNews(f) }, if ('.' in f.symbol) null else async { seekingAlpha(f) }) } else emptyList()
+        // one price request for your stocks (and the market rows), the small day lines every 5 minutes with the stock news
         val symbols = (favorites.map { it.symbol } + MARKET).distinct()
-        val prices = async { runCatching { symbols.chunked(20).flatMap { c -> News.parseSpark(get(News.sparkUrl(c))) } } }
-        val lines = if (stocks) async { runCatching { symbols.chunked(20).fold(emptyMap<String, List<Double>>()) { m, c -> m + Market.parsePoints(get(Market.pointsUrl(c))) } } } else null
+        val withMarket = stocks || foreground
+        val prices = async { runCatching { (if (withMarket) symbols else favorites.map { it.symbol }).chunked(20).flatMap { c -> News.parseSpark(get(News.sparkUrl(c))) } } }
+        val lines = if (stocks) async { runCatching { symbols.chunked(20).map { c -> get(Market.pointsUrl(c)) } } } else null
         val answers = (feeds + perStock).awaitAll()
         val all = prices.await()
         val fav = favorites.mapTo(HashSet()) { it.symbol }
         val priced = if (favorites.isEmpty()) null else all.map { q -> q.filter { it.symbol in fav } }
-        val marketGot = all.getOrNull()?.filter { it.symbol in MARKET }
-        val linesGot = lines?.await()?.getOrNull()
+        val marketGot = if (withMarket) all.getOrNull()?.filter { it.symbol in MARKET } else null
+        val linesJson = lines?.await()?.getOrNull()
+        val linesGot = linesJson?.fold(emptyMap<String, List<Double>>()) { m, j -> m + Market.parsePoints(j) }
+        val extGot = linesJson?.fold(emptyMap<String, Ext>()) { m, j -> m + Market.parseExt(j) }
         if (stocks) store.lastStocks = now
 
         val status = store.status.toMutableMap()
@@ -134,7 +143,9 @@ object Wire {
         store.items = merged
         store.quotes = shown
         if (!marketGot.isNullOrEmpty()) { store.market = marketGot; market.value = marketGot }
-        if (!linesGot.isNullOrEmpty()) { store.points = linesGot; points.value = linesGot }
+        // a US stock has no regular-session line yet in the early pre-market: it keeps yesterday's, which matches its price
+        if (!linesGot.isNullOrEmpty()) { val p = store.points.filterKeys { it in symbols } + linesGot; store.points = p; points.value = p }
+        if (extGot != null) { store.ext = extGot; ext.value = extGot }
         store.primed = primed
         store.status = status
         store.lastCheck = now
@@ -147,6 +158,10 @@ object Wire {
         val quiet = store.quiet && Alerts.quiet(java.time.LocalTime.now().hour)
         Notify.alerts(ctx, events, market, moves, quiet)
         if (tagged.any { it.wire }) Notify.wire(ctx, merged.filter { it.wire }.take(5))
+        if (store.brief && marketGot != null) Market.briefDue(now, marketGot, store.briefDay)?.let { day ->
+            store.briefDay = day
+            Notify.brief(ctx, marketGot, now)
+        }
         if (quiet || !store.squawk) emptyList() else Notify.spoken(events, market, moves)
     }
 

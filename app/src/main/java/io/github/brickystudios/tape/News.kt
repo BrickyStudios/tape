@@ -29,7 +29,8 @@ data class Item(
     val wire: Boolean = false,
 )
 
-data class Favorite(val symbol: String, val name: String) {
+/** A stock on the watchlist. [exchange]: where it trades, as Yahoo names it ("XETRA", "NasdaqGS"), to tell SAP.DE from SAP. */
+data class Favorite(val symbol: String, val name: String, val exchange: String = "") {
     /** The word headlines use for the company: "Amazon.com, Inc." → "Amazon", "Procter & Gamble Company (The)" → "Procter". */
     val keyword: String
         get() = name.trim().substringBefore(' ').substringBefore(',').removeSuffix(".com").ifEmpty { symbol }
@@ -119,7 +120,7 @@ object News {
         val quotes = JSONObject(json).optJSONArray("quotes") ?: return emptyList()
         return (0 until quotes.length()).map { quotes.getJSONObject(it) }
             .filter { it.optString("quoteType") in setOf("EQUITY", "ETF") && it.optString("symbol").isNotEmpty() }
-            .map { Favorite(it.getString("symbol"), it.optString("shortname").ifEmpty { it.optString("longname") }.replace(Regex("\\s+"), " ").trim().ifEmpty { it.getString("symbol") }) }
+            .map { Favorite(it.getString("symbol"), it.optString("shortname").ifEmpty { it.optString("longname") }.replace(Regex("\\s+"), " ").trim().ifEmpty { it.getString("symbol") }, it.optString("exchDisp")) }
     }
 
     /**

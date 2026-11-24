@@ -72,6 +72,7 @@ class NewsTest {
 
     @Test fun `lookup keeps stocks and funds, drops options`() {
         assertEquals(listOf("AMZN", "AMZW"), News.parseLookup(res("stock.json")).map { it.symbol })
+        assertEquals(listOf("NASDAQ", ""), News.parseLookup(res("stock.json")).map { it.exchange })
         assertEquals("Amazon.com, Inc.", News.parseLookup(res("stock.json"))[0].name)
     }
 

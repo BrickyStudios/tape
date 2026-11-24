@@ -121,7 +121,9 @@ object Notify {
             events.map { (i, _) -> i.tickers.first() + ": " + short(i.title) } + market.map { short(it.first.title) }).take(3)
     }
 
-    /** One quiet notification that always shows the newest wire headlines. */
+    fun clearWire(ctx: Context) = NotificationManagerCompat.from(ctx).cancel(WIRE_ID)
+
+    /** One quiet notification that always shows the newest wire headlines. Setup's "Ticker in the notification shade", off by default. */
     @SuppressLint("MissingPermission")
     fun wire(ctx: Context, latest: List<Item>) {
         val nm = NotificationManagerCompat.from(ctx)

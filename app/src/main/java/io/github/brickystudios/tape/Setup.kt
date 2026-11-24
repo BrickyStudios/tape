@@ -72,6 +72,7 @@ fun Setup(now: Long, onFavorites: (List<Favorite>) -> Unit) {
     var quietNights by remember { mutableStateOf(store.quiet) }
     var squawk by remember { mutableStateOf(store.squawk) }
     var brief by remember { mutableStateOf(store.brief) }
+    var tickerNote by remember { mutableStateOf(store.tickerNote) }
     fun saveWords(v: List<String>) { words = v; store.words = v }
     fun addWord() {
         val w = Alerts.cleanWord(word)
@@ -175,6 +176,13 @@ fun Setup(now: Long, onFavorites: (List<Favorite>) -> Unit) {
         }
         item {
             Toggle(R.string.brief, stringResource(R.string.brief_note), brief) { brief = it; store.brief = it }
+        }
+        item {
+            Toggle(R.string.ticker_note, stringResource(R.string.ticker_note_note), tickerNote) {
+                tickerNote = it
+                store.tickerNote = it
+                if (!it) Notify.clearWire(ctx)
+            }
         }
 
         item { Section(R.string.section_feeds) }

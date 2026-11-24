@@ -177,4 +177,6 @@
     <string name="brief_note">Weekdays around 9:25 Frankfurt time: how Europe opened, US futures and Asia. No sound.</string>
     <string name="brief_title">Europe opened</string>
     <string name="channel_brief">Morning overview</string>
+    <string name="ticker_note">Ticker in the notification shade</string>
+    <string name="ticker_note_note">One silent notification that always shows the newest headlines. Off: only alerts arrive.</string>
 </resources>

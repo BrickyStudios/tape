@@ -53,6 +53,28 @@ class AlertsTest {
         assertEquals(listOf("w2" to "Rate Decision"), market.map { it.first.id to it.second })
     }
 
+    @Test fun `a big move gets its label but rings as a price alert only`() {
+        val move = Item("m", "Tesla soars on robotaxi hopes", "https://e.com/m", "Bloomberg", 0, listOf("TSLA"))
+        assertEquals(Kind.MOVE, Alerts.kind(move.title, move.source))
+        assertEquals(emptyList<Pair<Item, Kind>>(), Alerts.decide(listOf(move), Alerts.DEFAULT_WORDS).first)
+    }
+
+    @Test fun `the same story rings once in 12 hours, an alert word once an hour`() {
+        val t0 = 1_000_000_000L
+        fun ev(id: String, sym: String, k: Kind) = Item(id, "x", "https://e.com/$id", "Reuters", t0, listOf(sym)) to k
+        val first = Alerts.pause(listOf(ev("a", "NVDA", Kind.MANAGEMENT), ev("b", "NVDA", Kind.MANAGEMENT), ev("c", "NVDA", Kind.EARNINGS)), emptyList(), emptyMap(), t0)
+        assertEquals(listOf("a", "c"), first.first.map { it.first.id }) // Seeking Alpha's copy of the Reuters story stays quiet
+        val later = Alerts.pause(listOf(ev("d", "NVDA", Kind.MANAGEMENT), ev("e", "AMZN", Kind.MANAGEMENT)), emptyList(), first.third, t0 + 2 * HOUR)
+        assertEquals(listOf("e"), later.first.map { it.first.id })
+        assertEquals(listOf("f"), Alerts.pause(listOf(ev("f", "NVDA", Kind.MANAGEMENT)), emptyList(), first.third, t0 + 13 * HOUR).first.map { it.first.id })
+
+        fun w(id: String, word: String) = Item(id, "US $word YoY", "https://e.com/$id", "FinancialJuice", t0, wire = true) to word
+        val cpi = Alerts.pause(emptyList(), listOf(w("1", "CPI"), w("2", "CPI"), w("3", "CPI")), emptyMap(), t0)
+        assertEquals(3, cpi.second.size) // one check's CPI lines stay one bundle
+        assertEquals(0, Alerts.pause(emptyList(), listOf(w("4", "CPI")), cpi.third, t0 + 30 * MINUTE).second.size)
+        assertEquals(1, Alerts.pause(emptyList(), listOf(w("5", "cpi")), cpi.third, t0 + 61 * MINUTE).second.size)
+    }
+
     @Test fun `alert words match whole words in any case`() {
         val words = Alerts.DEFAULT_WORDS
         assertEquals("Rate Decision", Alerts.alertWord("Fed Interest Rate Decision Actual 4.50% (Forecast 4.50%)", words))

@@ -18,8 +18,11 @@ enum class Kind { EARNINGS, ANALYST, DEAL, MANAGEMENT, LEGAL, HALT, CAPITAL, MOV
 
 /** Which news and prices are worth a sound. Pure, tested in AlertsTest. */
 object Alerts {
-    /** Headlines with these words ring even when they name none of your stocks. Editable under Setup. */
-    val DEFAULT_WORDS = listOf("FOMC", "Rate Decision", "CPI", "PCE", "Nonfarm Payrolls", "GDP", "ECB", "Tariff", "Recession", "Circuit Breaker")
+    /**
+     * Headlines with these words ring even when they name none of your stocks. Editable under Setup.
+     * No "ECB": 10 of 100 FinancialJuice lines in 18 hours were ECB speakers; the decision itself rings through "Rate Decision".
+     */
+    val DEFAULT_WORDS = listOf("FOMC", "Rate Decision", "CPI", "PCE", "Nonfarm Payrolls", "GDP", "Tariff", "Recession", "Circuit Breaker")
     const val MAX_WORDS = 30
     private const val MAX_WORD_LENGTH = 40
     val THRESHOLDS = listOf(3, 5, 10)
@@ -65,10 +68,33 @@ object Alerts {
      */
     fun decide(tagged: List<Item>, words: List<String>): Pair<List<Pair<Item, Kind>>, List<Pair<Item, String>>> {
         val unique = tagged.distinctBy { it.id }
-        val events = unique.filter { it.tickers.isNotEmpty() }.mapNotNull { i -> kind(i.title, i.source)?.let { i to it } }
+        // a big move rings as a price alert already; its headline only gets the label
+        val events = unique.filter { it.tickers.isNotEmpty() }.mapNotNull { i -> kind(i.title, i.source)?.takeIf { it != Kind.MOVE }?.let { i to it } }
         val ringing = events.mapTo(HashSet()) { it.first.id }
         val market = unique.filter { it.wire && it.id !in ringing }.mapNotNull { i -> alertWord(i.title, words)?.let { i to it } }
         return events to market
+    }
+
+    const val EVENT_PAUSE = 12 * HOUR
+    const val WORD_PAUSE = HOUR
+
+    /**
+     * After [decide]: one push per stock and event kind in 12 hours, one per alert word in an hour. The same story from Reuters,
+     * Seeking Alpha and Bloomberg rings once, the rest waits in the list. Alert words free at the start of a check ring together,
+     * so the 3 or 4 CPI lines still come as one bundle. Returns what rings and the memory to keep.
+     */
+    fun pause(
+        events: List<Pair<Item, Kind>>, market: List<Pair<Item, String>>, rang: Map<String, Long>, now: Long,
+    ): Triple<List<Pair<Item, Kind>>, List<Pair<Item, String>>, Map<String, Long>> {
+        val memory = rang.filterValues { now - it < EVENT_PAUSE }.toMutableMap()
+        fun recent(key: String, wait: Long) = memory[key]?.let { now - it < wait } == true
+        val ringing = events.filter { (i, k) ->
+            val keys = i.tickers.map { "e:$it|$k" }
+            keys.any { !recent(it, EVENT_PAUSE) }.also { ring -> if (ring) keys.forEach { memory[it] = now } }
+        }
+        val free = market.map { it.second.lowercase() }.distinct().filterNot { recent("w:$it", WORD_PAUSE) }.toSet()
+        free.forEach { memory["w:$it"] = now }
+        return Triple(ringing, market.filter { it.second.lowercase() in free }, memory)
     }
 
     private val GOOD = rx("""\b(beats?|tops estimates|raises (guidance|forecast|outlook|dividend)|upgrades?|upgraded|record (revenue|profit|sales|high)|approv(al|es|ed)|wins|soars?|soared|surges?|surged|jumps?|jumped|rall(y|ies|ied)|skyrockets?|buybacks?)\b""")

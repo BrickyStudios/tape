@@ -154,10 +154,12 @@ object Wire {
         lastCheck.value = now
 
         val tagged = News.merge(emptyList(), fresh).map { News.tag(it, favorites) }
-        val (events, market) = Alerts.decide(tagged, store.words)
+        val (heard, heardWords) = Alerts.decide(tagged, store.words)
+        val (events, market, rang) = Alerts.pause(heard, heardWords, store.rang, now)
+        store.rang = rang
         val quiet = store.quiet && Alerts.quiet(java.time.LocalTime.now().hour)
         Notify.alerts(ctx, events, market, moves, quiet)
-        if (tagged.any { it.wire }) Notify.wire(ctx, merged.filter { it.wire }.take(5))
+        if (store.tickerNote && tagged.any { it.wire }) Notify.wire(ctx, merged.filter { it.wire }.take(5))
         if (store.brief && marketGot != null) Market.briefDue(now, marketGot, store.briefDay)?.let { day ->
             store.briefDay = day
             Notify.brief(ctx, marketGot, now)

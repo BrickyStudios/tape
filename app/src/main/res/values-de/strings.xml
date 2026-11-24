@@ -175,4 +175,6 @@
     <string name="brief_note">Werktags gegen 9:25 Uhr: wie Europa gestartet ist, dazu US-Futures und Asien. Ohne Ton.</string>
     <string name="brief_title">Europa ist gestartet</string>
     <string name="channel_brief">Morgenüberblick</string>
+    <string name="ticker_note">Ticker in der Benachrichtigungsleiste</string>
+    <string name="ticker_note_note">Eine stille Benachrichtigung, die immer die neuesten Schlagzeilen zeigt. Aus: Es kommen nur Alarme.</string>
 </resources>

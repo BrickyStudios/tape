@@ -69,6 +69,16 @@ class Store(ctx: Context) {
         }
         set(v) = p.edit().putString("ext", JSONObject(v.mapValues { (_, e) -> JSONObject().put("p", e.price).put("b", e.base).put("t", e.time).put("pre", e.pre) }).toString()).apply()
 
+    /** When each stock event ("e:NVDA|EARNINGS") and alert word ("w:cpi") last rang, see [Alerts.pause]. */
+    var rang: Map<String, Long>
+        get() = runCatching { JSONObject(p.getString("rang", "{}")!!) }.getOrDefault(JSONObject()).let { o -> o.keys().asSequence().associateWith { o.getLong(it) } }
+        set(v) = p.edit().putString("rang", JSONObject(v).toString()).apply()
+
+    /** The always-updating ticker notification; off by default, it showed every headline. */
+    var tickerNote: Boolean
+        get() = p.getBoolean("tickerNote", false)
+        set(v) = p.edit().putBoolean("tickerNote", v).apply()
+
     var brief: Boolean
         get() = p.getBoolean("brief", true)
         set(v) = p.edit().putBoolean("brief", v).apply()

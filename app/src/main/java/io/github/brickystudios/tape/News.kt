@@ -146,10 +146,14 @@ object News {
      */
     fun mentions(title: String, f: Favorite): Boolean {
         for (word in f.words) {
-            if (word.length >= 3 && Regex("(?<![A-Za-z0-9])${Regex.escape(word)}(?![A-Za-z0-9])", RegexOption.IGNORE_CASE).containsMatchIn(title)) return true
+            if (word.length >= 3 && rx("w:$word") { Regex("(?<![A-Za-z0-9])${Regex.escape(word)}(?![A-Za-z0-9])", RegexOption.IGNORE_CASE) }.containsMatchIn(title)) return true
         }
-        return f.symbol.length >= 3 && Regex("(?<![A-Za-z0-9])\\$?${Regex.escape(f.symbol)}(?![A-Za-z0-9])").containsMatchIn(title)
+        return f.symbol.length >= 3 && rx("s:${f.symbol}") { Regex("(?<![A-Za-z0-9])\\$?${Regex.escape(f.symbol)}(?![A-Za-z0-9])") }.containsMatchIn(title)
     }
+
+    /** Each stock's patterns built once: tagging runs over hundreds of headlines whenever they or the stocks change. */
+    private val patterns = java.util.concurrent.ConcurrentHashMap<String, Regex>()
+    private fun rx(key: String, make: () -> Regex) = patterns.getOrPut(key, make)
 
     fun tag(item: Item, favorites: List<Favorite>): Item = item.copy(tickers = favorites.filter { mentions(item.title, it) }.map { it.symbol })
 

@@ -25,6 +25,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -81,40 +84,36 @@ fun todayLine(ctx: Context, releases: List<Indicator>, earnings: List<Earning>, 
 // ---- Termine tab ----
 
 /** The week as r/wallstreetbets and r/mauerstrassenwetten post it: per day the releases, then your earnings, then the most watched ones. */
-fun LazyListScope.agendaItems(releases: List<Indicator>, earnings: List<Earning>, favorites: List<Favorite>, now: Long, onOpen: (String) -> Unit) {
+fun LazyListScope.agendaItems(releases: List<Indicator>, earnings: List<Earning>, favorites: List<Favorite>, quotes: Map<String, Quote>, now: Long, onOpen: (String) -> Unit) {
     val zone = ZoneId.systemDefault()
     val mine = favorites.mapTo(HashSet()) { it.symbol }
     var any = false
-    for (d in 0L..6L) {
+    // yesterday only for its results: a report after yesterday's close is what today's prices answer
+    for (d in -1L..6L) {
         val from = Agenda.dayStart(now, zone, d)
         val to = Agenda.dayStart(now, zone, d + 1)
-        val rows = Agenda.rows(releases.filter { it.time in from until to })
-        val day = earnings.filter { it.time in from until to }
+        val rows = if (d < 0) emptyList() else Agenda.rows(releases.filter { it.time in from until to })
+        val day = earnings.filter { it.time in from until to && (d >= 0 || it.actual != null) }
         val yours = day.filter { it.symbol in mine }
         val watched = day.filter { it.symbol !in mine }.sortedByDescending { it.rank }.take(5)
         if (rows.isEmpty() && day.isEmpty()) continue
-        any = true
-        item(key = "day:$d") { DayHeader(from, d, first = d == 0L || !anyBefore(releases, earnings, now, zone, d)) }
+        item(key = "day:$d") { DayHeader(from, d, first = !any) }
         // by the clock, your stocks first among reports at the same time
         val entries = rows.map { Triple(it[0].time, 0, it as Any) } + yours.map { Triple(it.time, 1, it as Any) } + watched.map { Triple(it.time, 2, it as Any) }
         items(entries.sortedWith(compareBy({ it.first }, { it.second })), key = { (t, kind, v) -> "$kind:$t:" + ((v as? Earning)?.symbol ?: (v as List<*>).size) }) { (_, kind, v) ->
-            if (v is Earning) EarningRow(v, yours = kind == 1) { onOpen(v.symbol) } else @Suppress("UNCHECKED_CAST") ReleaseRow(v as List<Indicator>, now)
+            if (v is Earning) EarningRow(v, yours = kind == 1, quotes[v.symbol]) { onOpen(v.symbol) } else @Suppress("UNCHECKED_CAST") ReleaseRow(v as List<Indicator>, now)
         }
+        any = true
     }
     if (!any) item { Text(stringResource(R.string.agenda_empty), style = MetaStyle, modifier = Modifier.padding(vertical = 12.dp)) }
     item { Text(stringResource(R.string.agenda_note), style = MetaStyle.copy(color = Text3), modifier = Modifier.padding(top = 24.dp)) }
-}
-
-private fun anyBefore(releases: List<Indicator>, earnings: List<Earning>, now: Long, zone: ZoneId, d: Long): Boolean {
-    val from = Agenda.dayStart(now, zone)
-    val to = Agenda.dayStart(now, zone, d)
-    return releases.any { it.time in from until to } || earnings.any { it.time in from until to }
 }
 
 @Composable
 private fun DayHeader(day: Long, offset: Long, first: Boolean) {
     val date = SimpleDateFormat("EEE d.M.", Locale.getDefault()).format(Date(day))
     val label = when (offset) {
+        -1L -> stringResource(R.string.yesterday) + "  ·  " + date
         0L -> stringResource(R.string.today) + "  ·  " + date
         1L -> stringResource(R.string.tomorrow) + "  ·  " + date
         else -> date
@@ -143,14 +142,23 @@ private fun ReleaseRow(row: List<Indicator>, now: Long) {
 }
 
 /** One report: your stocks in full white with "Watchlist", the most watched ones in grey. Tapping opens the chart. */
+/**
+ * A report: before it, when and what is expected; after it, whether the company beat, met or missed the estimate and how the
+ * stock has moved since, on the right like a price row. Your stocks move with today's price, the others with the last check.
+ */
 @Composable
-private fun EarningRow(e: Earning, yours: Boolean, onClick: () -> Unit) {
+private fun EarningRow(e: Earning, yours: Boolean, quote: Quote?, onClick: () -> Unit) {
     val ctx = LocalContext.current
     val slot = slotText(ctx, e)
-    val eps = e.eps?.let { stringResource(R.string.agenda_eps, NumberFormat.getNumberInstance().apply { minimumFractionDigits = 2; maximumFractionDigits = 2 }.format(it)) }
+    val num = NumberFormat.getNumberInstance().apply { minimumFractionDigits = 2; maximumFractionDigits = 2 }
+    val eps = e.eps?.let { stringResource(R.string.agenda_eps, num.format(it)) }
+    val price = quote?.takeIf { it.time > e.time }?.price ?: e.last
+    val since = if (e.base != null && price != null) (price - e.base) / e.base * 100 else null
     Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 12.dp)) {
+        // a date without a time comes as midnight UTC; any other time is when the report came out
+        val timed = slot != null || e.time % (24 * HOUR) != 0L
         Text(
-            if (slot != null) android.text.format.DateFormat.getTimeFormat(ctx).format(Date(e.time)) else "—",
+            if (timed) android.text.format.DateFormat.getTimeFormat(ctx).format(Date(e.time)) else "—",
             Modifier.width(72.dp), style = ClockStyle, color = Text3, maxLines = 1,
         )
         Column(Modifier.weight(1f)) {
@@ -160,10 +168,36 @@ private fun EarningRow(e: Earning, yours: Boolean, onClick: () -> Unit) {
                 Text(e.name, style = HeadlineStyle.copy(color = if (yours) Text1 else Text2), maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Spacer(Modifier.height(4.dp))
-            Text(
-                listOfNotNull(if (yours) stringResource(R.string.tab_watchlist) else null, slot ?: stringResource(R.string.slot_open), eps).joinToString("  ·  "),
-                style = MetaStyle, maxLines = 1, overflow = TextOverflow.Ellipsis,
-            )
+            val verdict = e.verdict
+            if (verdict != null && e.actual != null) {
+                // "beat · 0.34 vs 0.31 per share": the word carries the colour, the figures stay quiet
+                val (word, color) = when (verdict) {
+                    1 -> stringResource(R.string.result_beat) to Up
+                    -1 -> stringResource(R.string.result_miss) to Down
+                    else -> stringResource(R.string.result_inline) to Text1
+                }
+                Text(
+                    buildAnnotatedString {
+                        withStyle(SpanStyle(color = color, fontWeight = FontWeight.Medium)) { append(word) }
+                        // an estimate of exactly 0 is Yahoo having none, not a forecast of zero
+                        append("  ·  " + if (e.eps != null && e.eps != 0.0) stringResource(R.string.result_eps, num.format(e.actual), num.format(e.eps)) else num.format(e.actual))
+                    },
+                    style = MetaStyle.merge(Tnum), maxLines = 1, overflow = TextOverflow.Ellipsis,
+                )
+            } else {
+                Text(
+                    listOfNotNull(if (yours) stringResource(R.string.tab_watchlist) else null, slot ?: stringResource(R.string.slot_open), eps).joinToString("  ·  "),
+                    style = MetaStyle, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        if (since != null) {
+            Spacer(Modifier.width(12.dp))
+            Column(horizontalAlignment = Alignment.End) {
+                ChangeTag(since)
+                Spacer(Modifier.height(4.dp))
+                Text(stringResource(R.string.since_report), style = MetaStyle.copy(color = Text3), maxLines = 1)
+            }
         }
     }
     HorizontalDivider(color = Hairline)

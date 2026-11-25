@@ -71,6 +71,23 @@ fun Setup(now: Long, favorites: List<Favorite>, onFavorites: (List<Favorite>) ->
     var tickerNote by remember { mutableStateOf(store.tickerNote) }
     var redditPosts by remember { mutableStateOf(store.redditPosts) }
     var german by remember { mutableStateOf(store.german) }
+    var youtubeOn by remember { mutableStateOf(store.youtubeOn) }
+    var xOn by remember { mutableStateOf(store.xOn) }
+    var voices by remember { mutableStateOf(store.voices) }
+    var voiceInput by remember { mutableStateOf("" to "") } // what is typed in the YouTube field, in the X field
+    var voiceNote by remember { mutableStateOf<Boolean?>(null) } // the field that found nothing: true YouTube, false X
+    fun saveVoices(v: List<Voice>) { voices = v; store.voices = v }
+    fun addVoice(youtube: Boolean) = scope.launch {
+        val input = if (youtube) voiceInput.first else voiceInput.second
+        val v = Wire.findVoice(ctx, input, youtube)
+        voiceNote = if (v == null) youtube else null
+        if (v != null) {
+            if (voices.none { it.youtube == v.youtube && it.id.equals(v.id, true) }) saveVoices(voices + v)
+            voiceInput = if (youtube) "" to voiceInput.second else voiceInput.first to ""
+            store.last(if (youtube) Wire.YOUTUBE else Wire.X, 0) // its videos or posts on the next check
+            Wire.check(ctx)
+        }
+    }
     fun saveWords(v: List<String>) { words = v; store.words = v }
     fun addWord() {
         val w = Alerts.cleanWord(word)
@@ -208,6 +225,32 @@ fun Setup(now: Long, favorites: List<Favorite>, onFavorites: (List<Favorite>) ->
         item { Field(feedUrl, { feedUrl = it }, R.string.feed_hint, R.string.add, KeyboardType.Uri) { addFeed() } }
         feedNote?.let { item { Note(stringResource(it)) } }
 
+        // videos and posts from investors, quiet: off by default, each list only while its switch is on
+        item { Section(R.string.section_voices) }
+        listOf(true, false).forEach { youtube ->
+            val on = if (youtube) youtubeOn else xOn
+            item(key = "voices:$youtube") {
+                Toggle(if (youtube) R.string.youtube_on else R.string.x_on, stringResource(if (youtube) R.string.youtube_note else R.string.x_note), on) {
+                    if (youtube) { youtubeOn = it; store.youtubeOn = it } else { xOn = it; store.xOn = it }
+                    if (it) { store.last(if (youtube) Wire.YOUTUBE else Wire.X, 0); scope.launch { Wire.check(ctx) } }
+                }
+            }
+            if (on) {
+                items(voices.filter { it.youtube == youtube }, key = { "voice:${it.youtube}:${it.id}" }) { v ->
+                    Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable { saveVoices(voices - v) }, verticalAlignment = Alignment.CenterVertically) {
+                        Text(v.name, Modifier.weight(1f), fontSize = 16.sp, color = Text1, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(stringResource(R.string.remove), fontSize = 14.sp, color = Text3)
+                    }
+                    HorizontalDivider(color = Hairline)
+                }
+                item(key = "voiceField:$youtube") {
+                    Field(if (youtube) voiceInput.first else voiceInput.second, { t -> voiceInput = if (youtube) t to voiceInput.second else voiceInput.first to t },
+                        if (youtube) R.string.voice_hint_youtube else R.string.voice_hint_x, R.string.add, KeyboardType.Uri) { addVoice(youtube) }
+                }
+                if (voiceNote == youtube) item(key = "voiceNote:$youtube") { Note(stringResource(R.string.voice_bad)) }
+            }
+        }
+
         item { Section(R.string.section_delivery) }
         item {
             Status(R.string.notifications, stringResource(if (notifications) R.string.on else R.string.off)) {
@@ -229,7 +272,8 @@ fun Setup(now: Long, favorites: List<Favorite>, onFavorites: (List<Favorite>) ->
 
         item { Section(R.string.section_sources) }
         // one line per feed plus Yahoo news, Seeking Alpha, Google News and prices; a failing source shows its error here
-        val names = feeds.filter { it.on }.map { it.name } + (if (german) News.GERMAN_FEEDS.map { it.name } else emptyList()) + listOf("Yahoo Finance news", News.SEEKING_ALPHA, "Google News", Wire.PRICES)
+        val names = feeds.filter { it.on }.map { it.name } + (if (german) News.GERMAN_FEEDS.map { it.name } else emptyList()) +
+            listOfNotNull(Wire.YOUTUBE.takeIf { youtubeOn }, Wire.X.takeIf { xOn }) + listOf("Yahoo Finance news", News.SEEKING_ALPHA, "Google News", Wire.PRICES)
         items(names.filter { it in status }, key = { "status:" + it }) { name ->
             val c = status.getValue(name)
             val time = clock(ctx, c.time, now)

@@ -63,4 +63,27 @@ class ChanceTest {
         assertEquals(-4.0, Chance.distance(96.0, 100.0), 1e-9)
         assertEquals(25.0, Chance.distance(125.0, 100.0), 1e-9)
     }
+
+    @Test fun `sell signals mirror the buying ones`() {
+        val l = Levels(avg200 = 100.0, low = 80.0, high = 140.0, rsi = 75.0, eps = 2.0)
+        assertEquals(listOf(Sign.OVERBOUGHT, Sign.STRETCHED, Sign.PRICEY), Chance.signs(l, 130.0))
+        assertEquals(65.0, Chance.pe(l, 130.0)!!, 1e-9)
+        assertNull(Chance.pe(l.copy(eps = -1.0), 130.0)) // a loss has no P/E
+        assertEquals(emptyList<Sign>(), Chance.signs(l.copy(rsi = 50.0, eps = 4.0), 115.0))
+    }
+
+    @Test fun `an owned stock leads with its sell signal, a watched one with its buying chance`() {
+        val both = listOf(Sign.DRAWDOWN, Sign.OVERBOUGHT)
+        assertEquals(Sign.OVERBOUGHT, Chance.lead(both, own = true))
+        assertEquals(Sign.DRAWDOWN, Chance.lead(both, own = false))
+        assertEquals(Sign.DRAWDOWN, Chance.lead(listOf(Sign.DRAWDOWN), own = true))
+        assertNull(Chance.lead(emptyList(), own = true))
+    }
+
+    @Test fun `trailing earnings add up the last four reported quarters`() {
+        fun e(q: Int, a: Double?) = Earning("AAPL", "Apple", q * 1000L, "TAS", "Q$q", null, 0, actual = a)
+        val eps = Chance.trailingEps(listOf(e(1, 1.0), e(2, 2.0), e(3, 3.0), e(4, 4.0), e(5, 5.0), e(6, null)) + Earning("NEW", "New", 1, "", "", null, 0, actual = 1.0))
+        assertEquals(mapOf("AAPL" to 14.0), eps)
+    }
 }
+

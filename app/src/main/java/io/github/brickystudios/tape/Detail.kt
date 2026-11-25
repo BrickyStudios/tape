@@ -252,7 +252,10 @@ private fun FollowButton(off: Int, on: Int, active: Boolean, modifier: Modifier,
 /** "4,2 %" without sign: the words around it say the direction. */
 private fun pct(v: Double) = String.format(java.util.Locale.getDefault(), "%.1f\u202F%%", abs(v))
 
-/** The four rules of thumb against today's price, each with its number, and how many of them hold. */
+/**
+ * The rules of thumb against today's price, each with its number: four for a buying chance, three for a sell signal.
+ * A rule that holds gets a dot before its label, amber for buying, red for selling.
+ */
 @Composable
 private fun ChanceBlock(levels: Result<Levels?>?, price: Double?, fmt: (Double) -> String) {
     Text(stringResource(R.string.chance_title), style = SectionStyle, modifier = Modifier.padding(top = 32.dp, bottom = 8.dp))
@@ -262,43 +265,61 @@ private fun ChanceBlock(levels: Result<Levels?>?, price: Double?, fmt: (Double) 
         return
     }
     val signs = Chance.signs(l, price)
-    Text(stringResource(R.string.chance_count, signs.size), fontSize = 16.sp, color = if (signs.isEmpty()) Text1 else Amber)
+    val buy = signs.count { it.buy }
+    val sell = signs.size - buy
+    Text(stringResource(R.string.chance_count, buy), fontSize = 16.sp, color = if (buy > 0) Amber else Text1)
+    Text(stringResource(R.string.sell_count, sell), fontSize = 16.sp, color = if (sell > 0) Down else Text1)
     // the level as the value, how far the price sits from it on the line below, so neither wraps on a phone
     @Composable
     fun side(base: Double) = Chance.distance(price, base).let { d -> stringResource(if (d < 0) R.string.chance_below else R.string.chance_above, pct(d)) }
-    val rsi = l.rsi?.let { r -> stringResource(if (r < Chance.OVERSOLD) R.string.rsi_oversold else if (r > 70) R.string.rsi_overbought else R.string.rsi_neutral) }
+    fun mark(vararg s: Sign) = s.firstOrNull { it in signs }
+    val rsi = l.rsi?.let { r -> stringResource(if (r < Chance.OVERSOLD) R.string.rsi_oversold else if (r > Chance.OVERBOUGHT) R.string.rsi_overbought else R.string.rsi_neutral) }
+    val pe = Chance.pe(l, price)
+    Spacer(Modifier.height(8.dp))
     Row {
-        ChanceFigure(R.string.chance_avg200, l.avg200?.let(fmt) ?: "—", l.avg200?.let { side(it) }, Sign.AVG200 in signs, Modifier.weight(1f))
-        ChanceFigure(R.string.chance_low, fmt(l.low), side(l.low), Sign.LOW in signs, Modifier.weight(1f))
+        ChanceFigure(R.string.chance_avg200, l.avg200?.let(fmt) ?: "—", l.avg200?.let { side(it) }, mark(Sign.AVG200, Sign.STRETCHED), Modifier.weight(1f))
+        ChanceFigure(R.string.chance_rsi, l.rsi?.roundToInt()?.toString() ?: "—", rsi, mark(Sign.OVERSOLD, Sign.OVERBOUGHT), Modifier.weight(1f))
     }
     Row {
-        ChanceFigure(R.string.chance_high, "−" + pct(Chance.distance(price, l.high).coerceAtMost(0.0)), fmt(l.high), Sign.DRAWDOWN in signs, Modifier.weight(1f))
-        ChanceFigure(R.string.chance_rsi, l.rsi?.roundToInt()?.toString() ?: "—", rsi, Sign.OVERSOLD in signs, Modifier.weight(1f))
+        ChanceFigure(R.string.chance_low, fmt(l.low), side(l.low), mark(Sign.LOW), Modifier.weight(1f))
+        ChanceFigure(R.string.chance_high, "−" + pct(Chance.distance(price, l.high).coerceAtMost(0.0)), fmt(l.high), mark(Sign.DRAWDOWN), Modifier.weight(1f))
+    }
+    Row {
+        ChanceFigure(R.string.chance_pe, pe?.let { String.format(java.util.Locale.getDefault(), "%.1f", it) } ?: "—", if (l.eps != null && l.eps <= 0) stringResource(R.string.pe_loss) else null, mark(Sign.PRICEY), Modifier.weight(1f))
+        ChanceFigure(R.string.chance_eps, l.eps?.let(fmt) ?: "—", null, null, Modifier.weight(1f))
     }
     Text(stringResource(R.string.chance_rules), style = MetaStyle.copy(color = Text3), modifier = Modifier.padding(top = 8.dp))
 }
 
-/** A figure whose rule holds gets an amber tick before its label. */
+/** A figure whose rule holds gets a dot before its label: amber for a buying chance, red for a sell signal. */
 @Composable
-private fun ChanceFigure(label: Int, value: String, note: String?, met: Boolean, modifier: Modifier) {
+private fun ChanceFigure(label: Int, value: String, note: String?, sign: Sign?, modifier: Modifier) {
+    val color = when { sign == null -> Text2; sign.buy -> Amber; else -> Down }
     Column(modifier.padding(vertical = 8.dp)) {
-        Text((if (met) "✓ " else "") + stringResource(label), style = MetaStyle.copy(color = if (met) Amber else Text2))
+        Text((if (sign != null) "● " else "") + stringResource(label), style = MetaStyle.copy(color = color))
         Text(value, fontSize = 16.sp, color = Text1, style = Tnum, maxLines = 1, overflow = TextOverflow.Ellipsis)
         if (note != null) Text(note, style = MetaStyle.merge(Tnum), maxLines = 1)
     }
 }
 
-/** The first rule that holds, for the line under a stock's row: "Near its 52-week low". Null when none holds. */
+/**
+ * The rule that leads for a stock's row, with its colour: "Near its 52-week low" in amber, "Overbought, RSI 74" in red.
+ * An owned stock names its sell signal first, a watched one its buying chance. Null when no rule holds.
+ */
 @Composable
-fun chanceHint(l: Levels?, q: Quote?): String? {
+fun signalHint(l: Levels?, q: Quote?, own: Boolean): Pair<String, androidx.compose.ui.graphics.Color>? {
     if (l == null || q == null) return null
-    return when (Chance.signs(l, q.price).firstOrNull()) {
+    val sign = Chance.lead(Chance.signs(l, q.price), own) ?: return null
+    val text = when (sign) {
         Sign.LOW -> stringResource(R.string.hint_low)
         Sign.AVG200 -> stringResource(R.string.hint_avg_at)
         Sign.OVERSOLD -> stringResource(R.string.hint_oversold, l.rsi!!.roundToInt())
         Sign.DRAWDOWN -> stringResource(R.string.hint_drawdown, pct(Chance.distance(q.price, l.high)))
-        null -> null
+        Sign.OVERBOUGHT -> stringResource(R.string.hint_overbought, l.rsi!!.roundToInt())
+        Sign.STRETCHED -> stringResource(R.string.hint_stretched, pct(Chance.distance(q.price, l.avg200!!)))
+        Sign.PRICEY -> stringResource(R.string.hint_pricey, Chance.pe(l, q.price)!!.roundToInt())
     }
+    return text to if (sign.buy) Amber else Down
 }
 
 /** "Mon 1.12., 22:00, after the close · EPS est. 1.10" */

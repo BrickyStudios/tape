@@ -139,7 +139,9 @@ fun HeadlineRow(item: Item, now: Long, tag: String? = null) {
         Column(Modifier.weight(1f)) {
             Text(item.title, style = HeadlineStyle, maxLines = 4, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.height(4.dp))
-            val kind = if (item.tickers.isNotEmpty()) Alerts.kind(item.title, item.source) else null
+            // a row that scrolls back into view reads its headline once, not on every pass
+            val kind = remember(item.id, item.tickers.isNotEmpty()) { if (item.tickers.isNotEmpty()) Alerts.kind(item.title, item.source) else null }
+            val tone = remember(item.id) { Alerts.tone(item.title) }
             val kindLabel = kind?.let { stringResource(Notify.kindLabel(it)) }
             val toneUp = stringResource(R.string.tone_up)
             val toneDown = stringResource(R.string.tone_down)
@@ -152,7 +154,6 @@ fun HeadlineRow(item: Item, now: Long, tag: String? = null) {
                     if (kindLabel != null) {
                         withStyle(SpanStyle(color = Text1)) { append(kindLabel) }
                         append("  ·  ")
-                        val tone = Alerts.tone(item.title)
                         if (tone != 0) {
                             withStyle(SpanStyle(color = if (tone > 0) Up else Down)) { append(if (tone > 0) "▲ " + toneUp else "▼ " + toneDown) }
                             append("  ·  ")
@@ -163,6 +164,8 @@ fun HeadlineRow(item: Item, now: Long, tag: String? = null) {
                         append("  ·  ")
                     }
                     append(item.source)
+                    // videos and posts say where they come from
+                    if (item.id.startsWith("yt:")) append("  ·  YouTube") else if (item.id.startsWith("x:")) append("  ·  X")
                 },
                 style = MetaStyle,
                 maxLines = 1,
@@ -216,12 +219,12 @@ fun priceText(q: Quote, plain: Boolean) = if (plain) Market.number(q.price) else
  * TalkBack reads it as one sentence: "NVIDIA, 165,05 $, ▲ +31,5 %".
  */
 @Composable
-fun QuoteRow(title: String, subtitle: String, quote: Quote?, points: List<Double>?, plain: Boolean, mono: Boolean, stale: String?, ext: Ext? = null, hint: String? = null, chance: String? = null, onClick: (() -> Unit)?) {
+fun QuoteRow(title: String, subtitle: String, quote: Quote?, points: List<Double>?, plain: Boolean, mono: Boolean, stale: String?, ext: Ext? = null, hint: String? = null, signal: Pair<String, Color>? = null, onClick: (() -> Unit)?) {
     val change = quote?.change
     val after = ext?.takeIf { quote != null && it.time > quote.time }
     val price = quote?.let { priceText(it, plain) } ?: "—"
     val extLabel = after?.let { stringResource(if (it.pre) R.string.ext_pre else R.string.ext_after) + " " + percent(it.change) }.orEmpty()
-    val spoken = "$subtitle $title, $price, " + (change?.let { (if (it >= 0) "▲ " else "▼ ") + percent(it) } ?: "") + " $extLabel " + listOfNotNull(chance, hint).joinToString(", ")
+    val spoken = "$subtitle $title, $price, " + (change?.let { (if (it >= 0) "▲ " else "▼ ") + percent(it) } ?: "") + " $extLabel " + listOfNotNull(signal?.first, hint).joinToString(", ")
     Column(
         Modifier.fillMaxWidth()
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
@@ -242,12 +245,12 @@ fun QuoteRow(title: String, subtitle: String, quote: Quote?, points: List<Double
                 if (stale != null) Text(stale, style = MetaStyle.copy(color = Text3), maxLines = 1) else ChangeTag(change)
             }
         }
-        // under the whole row, so it does not push the day line aside: a buying chance in amber, the earnings date, then after hours on the right
-        if (after != null || hint != null || chance != null) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        // under the whole row, so it does not push the day line aside: a signal (amber to buy, red to sell), the earnings date, after hours on the right
+        if (after != null || hint != null || signal != null) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(
                 buildAnnotatedString {
-                    if (chance != null) withStyle(SpanStyle(color = Amber)) { append(chance) }
-                    if (chance != null && hint != null) append("  ·  ")
+                    if (signal != null) withStyle(SpanStyle(color = signal.second)) { append(signal.first) }
+                    if (signal != null && hint != null) append("  ·  ")
                     if (hint != null) append(hint)
                 },
                 Modifier.weight(1f), style = MetaStyle.copy(color = Text1), maxLines = 1, overflow = TextOverflow.Ellipsis,

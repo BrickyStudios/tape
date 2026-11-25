@@ -265,8 +265,8 @@
     <string name="search_note">Jede Aktie und jeder ETF. Öffne einen Wert für Chart, Nachrichten und Kaufchancen</string>
     <string name="search_close">Suche schließen</string>
     <string name="news_loading">Lade Nachrichten</string>
-    <string name="chance_title">Kaufchance</string>
-    <string name="chance_count">Zeichen für eine Kaufchance: %1$d von 4</string>
+    <string name="chance_title">Signale</string>
+    <string name="chance_count">Kaufchance: %1$d von 4</string>
     <string name="chance_avg200">200-Tage-Linie</string>
     <string name="chance_low">52-Wochen-Tief</string>
     <string name="chance_high">Abstand zum Jahreshoch</string>
@@ -276,7 +276,7 @@
     <string name="rsi_oversold">überverkauft</string>
     <string name="rsi_overbought">überkauft</string>
     <string name="rsi_neutral">neutral</string>
-    <string name="chance_rules" formatted="false">Ein Zeichen zählt, wenn der Kurs zwischen 5 % unter und 3 % über der 200-Tage-Linie oder höchstens 5 % über dem 52-Wochen-Tief liegt, mindestens 20 % unter dem Jahreshoch, oder wenn der RSI unter 30 fällt. Das sind Faustregeln, keine Anlageberatung.</string>
+    <string name="chance_rules" formatted="false">Kaufchance: Der Kurs liegt zwischen 5 % unter und 3 % über der 200-Tage-Linie, höchstens 5 % über dem 52-Wochen-Tief, mindestens 20 % unter dem Jahreshoch, oder der RSI liegt unter 30. Verkaufssignal: Der RSI liegt über 70, der Kurs mindestens 25 % über der 200-Tage-Linie, oder das KGV über 40; schnell wachsende Firmen liegen oft darüber. Der Gewinn je Aktie ist der bereinigte Wert aus den letzten vier Berichten. Das sind Faustregeln, keine Anlageberatung.</string>
     <string name="chance_loading">Lade die Kurse eines Jahres</string>
     <string name="chance_none">Zu wenig Kursverlauf für diese Zeichen</string>
     <string name="hint_low">Nahe am 52-Wochen-Tief</string>
@@ -285,4 +285,25 @@
     <string name="hint_drawdown">%1$s unter dem Jahreshoch</string>
     <string name="german">Deutsche Quellen</string>
     <string name="german_note">onvista, Handelsblatt und FAZ. Ereignis und Tendenz erkennt Tape auch an deutschen Wörtern</string>
+    <string name="sell_count">Verkaufssignal: %1$d von 3</string>
+    <string name="chance_pe">KGV, letzte 4 Quartale</string>
+    <string name="chance_eps">Gewinn je Aktie</string>
+    <string name="pe_loss">Verlust, kein KGV</string>
+    <string name="hint_overbought">Überkauft, RSI %1$d</string>
+    <string name="hint_stretched">%1$s über der 200-Tage-Linie</string>
+    <string name="hint_pricey">Hoch bewertet, KGV %1$d</string>
+    <string name="result_beat">übertroffen</string>
+    <string name="result_miss">verfehlt</string>
+    <string name="result_inline">getroffen</string>
+    <string name="result_eps">%1$s statt %2$s</string>
+    <string name="since_report">seither</string>
+    <string name="yesterday">Gestern</string>
+    <string name="section_voices">Influencer auf YouTube und X</string>
+    <string name="youtube_on">YouTube-Kanäle</string>
+    <string name="youtube_note">Neue Videos unter Markt, ohne Ton. Nennt ein Video eine deiner Aktien, steht es auch auf ihrer Seite</string>
+    <string name="x_on">Posts auf X</string>
+    <string name="x_note">Über freiwillig betriebene Nitter-Server, weil X ohne Konto nichts herausgibt. X geht gegen diese Server vor, Posts können zeitweise ausbleiben</string>
+    <string name="voice_hint_youtube">YouTube-Link oder @Kanal</string>
+    <string name="voice_hint_x">@Konto auf X</string>
+    <string name="voice_bad">Nicht gefunden. Prüf den Namen, oder die Server sind gerade weg</string>
 </resources>

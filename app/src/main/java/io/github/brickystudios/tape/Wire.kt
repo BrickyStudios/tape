@@ -51,6 +51,7 @@ object Wire {
     val posts = MutableStateFlow<List<Post>>(emptyList())
     val cot = MutableStateFlow<List<Cot>>(emptyList())
     val levels = MutableStateFlow<Map<String, Levels>>(emptyMap())
+    val voices = MutableStateFlow<List<Item>>(emptyList())
 
     /** The app is on screen: market rows every check, otherwise every 5 minutes (they never ring, and 17 rows cost data). */
     @Volatile var foreground = false
@@ -72,6 +73,7 @@ object Wire {
         posts.value = s.posts
         cot.value = s.cot
         levels.value = s.levels
+        voices.value = s.voiceItems
         lastCheck.value = s.lastCheck
     }
 
@@ -193,6 +195,8 @@ object Wire {
     const val ARCTIC = "Arctic Shift (Reddit)"
     const val CFTC = "CFTC positioning"
     const val HISTORY = "Yahoo Finance history"
+    const val YOUTUBE = "YouTube"
+    const val X = "X (Nitter)"
 
     /**
      * The sources that change slowly, each on its own clock: calendar and earnings every 3 hours (5 minutes after a pull or a new stock),
@@ -208,16 +212,46 @@ object Wire {
         val agendaEvery = if (stocksNow) 5 * MINUTE else Agenda.INTERVAL
         if (due(CALENDAR, agendaEvery)) jobs += fetch(CALENDAR, { Agenda.parseReleases(get(Agenda.RELEASES_URL)) }) { store.releases = it; releases.value = it }
         if (due(EARNINGS, agendaEvery)) jobs += fetch(EARNINGS, {
-            val today = Agenda.dayStart(now, zone)
-            val popular = Agenda.parseEarnings(get(Agenda.weekUrl(today, Agenda.dayStart(now, zone, 7))))
-            val mine = if (favorites.isEmpty()) emptyList() else Agenda.parseEarnings(get(Agenda.stocksUrl(favorites.map { it.symbol }, today, Agenda.dayStart(now, zone, 60))))
-            (mine + popular).distinctBy { it.symbol to it.time }.sortedBy { it.time }
+            // from yesterday: a report after yesterday's close shows today with its result and how the stock took it
+            val from = Agenda.dayStart(now, zone, -1)
+            val popular = Agenda.parseEarnings(get(Agenda.weekUrl(from, Agenda.dayStart(now, zone, 7))))
+            val mine = if (favorites.isEmpty()) emptyList() else Agenda.parseEarnings(get(Agenda.stocksUrl(favorites.map { it.symbol }, from, Agenda.dayStart(now, zone, 60))))
+            val all = (mine + popular).distinctBy { it.symbol to it.time }.sortedBy { it.time }
+            val reported = all.filter { it.actual != null }.map { it.symbol }.distinct()
+            val daily = runCatching { reported.chunked(20).fold(emptyMap<String, Daily>()) { m, c -> m + Agenda.parseDaily(get(Agenda.dailyUrl(c))) } }.getOrDefault(emptyMap())
+            all.map { Agenda.react(it, daily[it.symbol]) }
         }) { store.earnings = it; earnings.value = it }
         // a stock without levels yet (just added) is asked within 5 minutes; Yahoo may simply have no year of history for it
         val missing = favorites.any { it.symbol !in store.levels }
-        if (favorites.isNotEmpty() && due(HISTORY, if (missing) 5 * MINUTE else Chance.INTERVAL)) jobs += fetch(HISTORY, {
-            favorites.map { it.symbol }.chunked(20).fold(emptyMap<String, Levels>()) { m, c -> m + Chance.parse(get(Chance.url(c))) }
+        // "v2": levels saved before 0.8.0 lack the earnings for the P/E, so they load again once right after the update
+        if (favorites.isNotEmpty() && due("$HISTORY v2", if (missing) 5 * MINUTE else Chance.INTERVAL)) jobs += fetch(HISTORY, {
+            val symbols = favorites.map { it.symbol }
+            // the P/E needs a year of reported earnings; without them the price levels still count
+            val eps = runCatching { symbols.chunked(50).fold(emptyMap<String, Double>()) { m, c -> m + Chance.trailingEps(Agenda.parseEarnings(get(Agenda.historyUrl(c, now)))) } }.getOrDefault(emptyMap())
+            symbols.chunked(20).fold(emptyMap<String, Levels>()) { m, c -> m + Chance.parse(get(Chance.url(c))) }.mapValues { (s, l) -> l.copy(eps = eps[s]) }
         }) { got -> val v = store.levels.filterKeys { k -> favorites.any { it.symbol == k } } + got; store.levels = v; levels.value = v }
+        val voiceList = store.voices
+        val tubes = voiceList.filter { it.youtube }
+        val accounts = voiceList.filter { !it.youtube }
+        if (store.youtubeOn && tubes.isNotEmpty() && due(YOUTUBE, Voices.YOUTUBE_EVERY)) jobs += fetch(YOUTUBE, {
+            val got = tubes.map { v -> runCatching { Voices.parseYouTube(get(Voices.youtubeUrl(v.id)), v.name) } }
+            got.firstNotNullOfOrNull { it.exceptionOrNull() }?.takeIf { got.all { r -> r.isFailure } }?.let { throw it }
+            got.flatMap { it.getOrDefault(emptyList()) }
+        }) { keepVoices(store, it) }
+        if (store.xOn && accounts.isNotEmpty() && due(X, Voices.X_EVERY)) jobs += fetch(X, {
+            // the last server that answered first; a server that fails is skipped for the rest of this check
+            val hosts = (listOf(store.nitter) + Voices.NITTER).distinct().toMutableList()
+            val got = accounts.map { v ->
+                var r: Result<List<Item>> = Result.failure(IOException("no Nitter server answered"))
+                while (hosts.isNotEmpty() && r.isFailure) {
+                    r = runCatching { Voices.parseNitter(get(Voices.nitterUrl(hosts.first(), v.id)), v.name, v.id) }
+                    if (r.isSuccess) store.nitter = hosts.first() else hosts.removeAt(0)
+                }
+                r
+            }
+            got.firstNotNullOfOrNull { it.exceptionOrNull() }?.takeIf { got.all { r -> r.isFailure } }?.let { throw it }
+            got.flatMap { it.getOrDefault(emptyList()) }
+        }) { keepVoices(store, it) }
         if (due(CFTC, Positioning.INTERVAL)) jobs += fetch(CFTC, { Positioning.parse(get(Positioning.URL)) }) { if (it.isNotEmpty()) { store.cot = it; cot.value = it } }
         if (due(APEWISDOM, Reddit.INTERVAL)) jobs += fetch(APEWISDOM, { Reddit.parseMentions(get(Reddit.MENTIONS_URL)) }) { if (it.isNotEmpty()) { store.mentions = it; mentions.value = it } }
         if (store.redditPosts && due(ARCTIC, Reddit.INTERVAL)) jobs += fetch(ARCTIC, {
@@ -228,6 +262,33 @@ object Wire {
         }) { if (it.isNotEmpty()) { store.posts = it; posts.value = it } }
         return jobs.toMap()
     }
+
+    /** New videos and posts in front of the kept ones; a channel or account taken off the list drops out with its items. */
+    private fun keepVoices(store: Store, got: List<Item>) {
+        val names = store.voices.mapTo(HashSet()) { it.name }
+        val v = News.merge(store.voiceItems.filter { it.source in names }, got, Voices.KEEP)
+        store.voiceItems = v
+        voices.value = v
+    }
+
+    /** Setup's add field: a YouTube link or @handle, or an X handle or link. Null when neither answers. */
+    suspend fun findVoice(ctx: Context, input: String, youtube: Boolean): Voice? = withContext(Dispatchers.IO) {
+        if (youtube) {
+            Voices.channelId(input)?.let { id -> return@withContext runCatching { get(Voices.youtubeUrl(id)) }.getOrNull()?.let { Voice(true, id, channelName(it) ?: id) } }
+            val handle = Voices.youtubeHandle(input) ?: input.trim().removePrefix("@").takeIf { it.matches(Regex("[\\w.-]{3,30}")) } ?: return@withContext null
+            runCatching { Voices.parseChannelPage(get(Voices.channelPage(handle))) }.getOrNull()?.let { (id, name) -> Voice(true, id, name) }
+        } else {
+            val handle = Voices.xHandle(input) ?: return@withContext null
+            for (host in (listOf(Store(ctx).nitter) + Voices.NITTER).distinct()) {
+                val items = runCatching { get(Voices.nitterUrl(host, handle)) }.getOrNull() ?: continue
+                val name = Regex("<title>(.*?) / @", RegexOption.DOT_MATCHES_ALL).find(items)?.groupValues?.get(1)?.trim()
+                if ("<item>" in items || name != null) return@withContext Voice(false, handle, name ?: "@$handle")
+            }
+            null
+        }
+    }
+
+    private fun channelName(xml: String) = Regex("<title>(.*?)</title>").find(xml)?.groupValues?.get(1)?.replace("&amp;", "&")
 
     /** Yahoo first; Google News when Yahoo refuses or has nothing. Each under its own key, so a switch does not ring. */
     private fun stockNews(f: Favorite): Answer {
@@ -256,11 +317,13 @@ object Wire {
 
     private val history = ConcurrentHashMap<String, Pair<Long, Levels?>>()
 
-    /** Levels for a stock off the list, at most one request per stock and hour. */
+    /** Levels for a stock off the list, at most one request per stock and hour; the P/E's earnings in a second, small one. */
     suspend fun levels(symbol: String): Levels? = withContext(Dispatchers.IO) {
         history[symbol]?.takeIf { System.currentTimeMillis() - it.first < HOUR }?.let { return@withContext it.second }
-        runCatching { Chance.parse(get(Chance.url(listOf(symbol))))[symbol] }.getOrNull()
-            .also { history[symbol] = System.currentTimeMillis() to it }
+        val now = System.currentTimeMillis()
+        val eps = runCatching { Chance.trailingEps(Agenda.parseEarnings(get(Agenda.historyUrl(listOf(symbol), now))))[symbol] }.getOrNull()
+        runCatching { Chance.parse(get(Chance.url(listOf(symbol))))[symbol]?.copy(eps = eps) }.getOrNull()
+            .also { history[symbol] = now to it }
     }
 
     /** Headlines about a stock off the list, asked when its page opens: the same sources and the same rule (the headline names it) as for the list. */

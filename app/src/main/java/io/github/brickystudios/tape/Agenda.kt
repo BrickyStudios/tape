@@ -11,7 +11,20 @@ import java.time.ZoneId
 data class Indicator(val title: String, val place: String, val time: Long, val forecast: String, val previous: String)
 
 /** A company's next quarterly report. [slot]: "BMO" before the open, "AMC" after the close, anything else not announced. */
-data class Earning(val symbol: String, val name: String, val time: Long, val slot: String, val quarter: String, val eps: Double?, val rank: Long)
+/**
+ * One report. After it is out: [actual] earnings per share and the [surprise] against the estimate in percent, Yahoo's figures.
+ * [base] the close before the report, [last] the latest price after it and its time: how the stock took it.
+ */
+data class Earning(
+    val symbol: String, val name: String, val time: Long, val slot: String, val quarter: String, val eps: Double?, val rank: Long,
+    val actual: Double? = null, val surprise: Double? = null, val base: Double? = null, val last: Double? = null, val lastTime: Long = 0,
+) {
+    /** 1 beat, -1 missed, 0 in line (within ±2 % of the estimate), null before the report. */
+    val verdict: Int? get() = surprise?.let { if (it >= 2) 1 else if (it <= -2) -1 else 0 }
+}
+
+/** One symbol's daily closes with the start of each session, and its latest price with its time. */
+class Daily(val times: List<Long>, val closes: List<Double>, val price: Double, val priceTime: Long)
 
 /**
  * The week ahead, what r/wallstreetbets ("Most Anticipated Earnings") and r/mauerstrassenwetten ("Erntenkalender") post every week:
@@ -51,6 +64,38 @@ object Agenda {
     fun stocksUrl(symbols: List<String>, from: Long, to: Long) =
         "$EARNINGS_URL&countPerDay=100&startDate=$from&endDate=$to&tickersFilter=${URLEncoder.encode(symbols.joinToString(","), "UTF-8")}"
 
+    /** A year of your stocks' reports, for the earnings over the last four quarters. Yahoo refuses more than 365 days with a filter. */
+    fun historyUrl(symbols: List<String>, now: Long) =
+        "$EARNINGS_URL&countPerDay=100&startDate=${now - 364 * 24 * HOUR}&endDate=$now&tickersFilter=${URLEncoder.encode(symbols.joinToString(","), "UTF-8")}"
+
+    /** A month of daily closes for up to 20 symbols, to see how each took its report. */
+    fun dailyUrl(symbols: List<String>) = "https://query2.finance.yahoo.com/v7/finance/spark?symbols=${URLEncoder.encode(symbols.joinToString(","), "UTF-8")}&range=1mo&interval=1d"
+
+    fun parseDaily(json: String): Map<String, Daily> {
+        val results = JSONObject(json).optJSONObject("spark")?.optJSONArray("result") ?: return emptyMap()
+        return (0 until results.length()).mapNotNull { i ->
+            val o = results.getJSONObject(i)
+            val r = o.optJSONArray("response")?.optJSONObject(0) ?: return@mapNotNull null
+            val ts = r.optJSONArray("timestamp") ?: return@mapNotNull null
+            val cs = r.optJSONObject("indicators")?.optJSONArray("quote")?.optJSONObject(0)?.optJSONArray("close") ?: return@mapNotNull null
+            val keep = (0 until minOf(ts.length(), cs.length())).filterNot(cs::isNull)
+            val m = r.optJSONObject("meta") ?: return@mapNotNull null
+            val price = m.optDouble("regularMarketPrice")
+            if (keep.isEmpty() || !(price > 0)) return@mapNotNull null
+            o.optString("symbol") to Daily(keep.map { ts.getLong(it) * 1000 }, keep.map(cs::getDouble), price, m.optLong("regularMarketTime") * 1000)
+        }.filter { it.first.isNotEmpty() }.toMap()
+    }
+
+    /**
+     * How a stock took its report: the close of the last session that began before the report (the day before for a report before
+     * the open, the same day after the close) and the latest price, once a session has traded since. Unchanged otherwise.
+     */
+    fun react(e: Earning, d: Daily?): Earning {
+        if (d == null || e.actual == null || d.priceTime <= e.time) return e
+        val i = d.times.indexOfLast { it < e.time }.takeIf { it >= 0 } ?: return e
+        return e.copy(base = d.closes[i], last = d.price, lastTime = d.priceTime)
+    }
+
     fun parseEarnings(json: String): List<Earning> {
         val days = JSONObject(json).optJSONObject("finance")?.optJSONObject("result")?.optJSONArray("earnings") ?: return emptyList()
         return (0 until days.length()).flatMap { i ->
@@ -59,8 +104,11 @@ object Agenda {
                 val symbol = o.optString("ticker")
                 val time = o.optLong("startDateTime")
                 if (symbol.isEmpty() || time <= 0) return@mapNotNull null
-                val eps = o.optDouble("epsEstimate").takeUnless { it.isNaN() }
-                Earning(symbol, o.optString("companyShortName").replace(Regex("\\s+"), " ").trim(), time, o.optString("startDateTimeType"), o.optString("quarter"), eps, o.optLong("rank"))
+                fun num(key: String) = if (o.isNull(key)) null else o.optDouble(key).takeUnless { it.isNaN() }
+                Earning(
+                    symbol, o.optString("companyShortName").replace(Regex("\\s+"), " ").trim(), time, o.optString("startDateTimeType"), o.optString("quarter"),
+                    num("epsEstimate"), o.optLong("rank"), actual = num("epsActual"), surprise = num("surprisePercent"),
+                )
             }
         }.sortedBy { it.time }
     }

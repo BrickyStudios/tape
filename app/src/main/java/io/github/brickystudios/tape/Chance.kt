@@ -3,11 +3,14 @@ package io.github.brickystudios.tape
 import org.json.JSONObject
 import java.net.URLEncoder
 
-/** A year of daily closes boiled down to the levels long-term buyers watch. [avg200]: null with fewer than 200 trading days. */
-data class Levels(val avg200: Double?, val low: Double, val high: Double, val rsi: Double?)
+/**
+ * A year of daily closes boiled down to the levels long-term investors watch. [avg200]: null with fewer than 200 trading days.
+ * [eps]: earnings per share over the last four reported quarters, from Yahoo's calendar (adjusted figures, as companies report them).
+ */
+data class Levels(val avg200: Double?, val low: Double, val high: Double, val rsi: Double?, val eps: Double? = null)
 
-/** The rules of thumb behind "buying chance", in the order a row names them. */
-enum class Sign { LOW, AVG200, OVERSOLD, DRAWDOWN }
+/** The rules of thumb: [buy] ones for a buying chance, the others for a sell signal, each group in the order a row names them. */
+enum class Sign(val buy: Boolean) { LOW(true), AVG200(true), OVERSOLD(true), DRAWDOWN(true), OVERBOUGHT(false), STRETCHED(false), PRICEY(false) }
 
 /** Everything about buying chances that needs no phone. Tested in ChanceTest. */
 object Chance {
@@ -22,6 +25,11 @@ object Chance {
     /** At least this far below the 52-week high counts. */
     const val DRAWDOWN = 0.80
     const val OVERSOLD = 30.0
+    const val OVERBOUGHT = 70.0
+    /** At least this far over the 200-day line: the price ran ahead of its trend. */
+    const val STRETCHED = 1.25
+    /** Price over a year's earnings above this reads as richly valued; fast growers often sit higher, which the rules text says. */
+    const val PRICEY = 40.0
     /** Daily closes change once a day; a new stock is asked within 5 minutes. */
     const val INTERVAL = 6 * HOUR
 
@@ -59,13 +67,26 @@ object Chance {
         return if (loss == 0.0) 100.0 else 100 - 100 / (1 + gain / loss)
     }
 
-    /** The signs this price shows against its levels, in [Sign] order. */
+    /** The signs this price shows against its levels, in [Sign] order: buying chances first, then sell signals. */
     fun signs(l: Levels, price: Double): List<Sign> = buildList {
         if (price <= l.low * NEAR_LOW) add(Sign.LOW)
         if (l.avg200 != null && price in l.avg200 * AVG_UNDER..l.avg200 * AVG_OVER) add(Sign.AVG200)
         if (l.rsi != null && l.rsi < OVERSOLD) add(Sign.OVERSOLD)
         if (price <= l.high * DRAWDOWN) add(Sign.DRAWDOWN)
+        if (l.rsi != null && l.rsi > OVERBOUGHT) add(Sign.OVERBOUGHT)
+        if (l.avg200 != null && price >= l.avg200 * STRETCHED) add(Sign.STRETCHED)
+        pe(l, price)?.let { if (it > PRICEY) add(Sign.PRICEY) }
     }
+
+    /** Price over the last four quarters' earnings; null without them or after a loss, where the ratio means nothing. */
+    fun pe(l: Levels, price: Double): Double? = l.eps?.takeIf { it > 0 }?.let { price / it }
+
+    /** For a row: an owned stock names its sell signal first, a watched one its buying chance. */
+    fun lead(signs: List<Sign>, own: Boolean): Sign? = signs.sortedBy { if (it.buy == own) 1 else 0 }.firstOrNull()
+
+    /** Earnings per share over the last four reported quarters, from Yahoo's calendar for up to a year back ([Agenda.historyUrl]). */
+    fun trailingEps(history: List<Earning>): Map<String, Double> = history.filter { it.actual != null }.groupBy { it.symbol }
+        .filterValues { it.size >= 4 }.mapValues { (_, e) -> e.sortedBy { it.time }.takeLast(4).sumOf { it.actual!! } }
 
     /** Percent from [base] to [price]: −4.2 when the price is 4.2 % under it. */
     fun distance(price: Double, base: Double) = (price - base) / base * 100

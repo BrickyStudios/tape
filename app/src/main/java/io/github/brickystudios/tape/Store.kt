@@ -142,8 +142,15 @@ class Store(ctx: Context) {
         set(v) = put("releases", v.map { JSONObject().put("ti", it.title).put("p", it.place).put("t", it.time).put("f", it.forecast).put("pr", it.previous) })
 
     var earnings: List<Earning>
-        get() = array("earnings").map { Earning(it.getString("s"), it.optString("n"), it.getLong("t"), it.optString("sl"), it.optString("q"), if (it.has("e")) it.getDouble("e") else null, it.optLong("r")) }
-        set(v) = put("earnings", v.map { e -> JSONObject().put("s", e.symbol).put("n", e.name).put("t", e.time).put("sl", e.slot).put("q", e.quarter).put("r", e.rank).also { o -> e.eps?.let { o.put("e", it) } } })
+        get() = array("earnings").map {
+            fun num(k: String) = if (it.has(k)) it.getDouble(k) else null
+            Earning(it.getString("s"), it.optString("n"), it.getLong("t"), it.optString("sl"), it.optString("q"), num("e"), it.optLong("r"), num("a"), num("sp"), num("b"), num("l"), it.optLong("lt"))
+        }
+        set(v) = put("earnings", v.map { e ->
+            JSONObject().put("s", e.symbol).put("n", e.name).put("t", e.time).put("sl", e.slot).put("q", e.quarter).put("r", e.rank).put("lt", e.lastTime).also { o ->
+                e.eps?.let { o.put("e", it) }; e.actual?.let { o.put("a", it) }; e.surprise?.let { o.put("sp", it) }; e.base?.let { o.put("b", it) }; e.last?.let { o.put("l", it) }
+            }
+        })
 
     var mentions: List<Mention>
         get() = array("mentions").map { Mention(it.getString("s"), it.optString("n"), it.getInt("m"), it.optInt("b"), it.optInt("r")) }
@@ -156,9 +163,34 @@ class Store(ctx: Context) {
     /** Each watched stock's year of daily closes, boiled down for the buying chances. */
     var levels: Map<String, Levels>
         get() = runCatching { JSONObject(p.getString("levels", "{}")!!) }.getOrDefault(JSONObject()).let { o ->
-            o.keys().asSequence().associateWith { k -> o.getJSONObject(k).let { Levels(if (it.has("a")) it.getDouble("a") else null, it.getDouble("lo"), it.getDouble("hi"), if (it.has("r")) it.getDouble("r") else null) } }
+            o.keys().asSequence().associateWith { k ->
+                val it = o.getJSONObject(k)
+                fun num(n: String) = if (it.has(n)) it.getDouble(n) else null
+                Levels(num("a"), it.getDouble("lo"), it.getDouble("hi"), num("r"), num("e"))
+            }
         }
-        set(v) = p.edit().putString("levels", JSONObject(v.mapValues { (_, l) -> JSONObject().put("lo", l.low).put("hi", l.high).also { o -> l.avg200?.let { o.put("a", it) }; l.rsi?.let { o.put("r", it) } } }).toString()).apply()
+        set(v) = p.edit().putString("levels", JSONObject(v.mapValues { (_, l) ->
+            JSONObject().put("lo", l.low).put("hi", l.high).also { o -> l.avg200?.let { o.put("a", it) }; l.rsi?.let { o.put("r", it) }; l.eps?.let { o.put("e", it) } }
+        }).toString()).apply()
+
+    /** Setup's YouTube and X switches, off by default, and the channels and accounts behind them. */
+    var youtubeOn: Boolean
+        get() = p.getBoolean("youtubeOn", false)
+        set(v) = p.edit().putBoolean("youtubeOn", v).apply()
+    var xOn: Boolean
+        get() = p.getBoolean("xOn", false)
+        set(v) = p.edit().putBoolean("xOn", v).apply()
+    var voices: List<Voice>
+        get() = if (!p.contains("voices")) Voices.DEFAULT else array("voices").map { Voice(it.getBoolean("y"), it.getString("i"), it.optString("n")) }
+        set(v) = put("voices", v.map { JSONObject().put("y", it.youtube).put("i", it.id).put("n", it.name) })
+    /** Their newest videos and posts; never mixed into the headlines, so nothing of theirs rings. */
+    var voiceItems: List<Item>
+        get() = array("voiceItems").map { Item(it.getString("id"), it.getString("t"), it.getString("l"), it.getString("s"), it.getLong("at")) }
+        set(v) = put("voiceItems", v.map { JSONObject().put("id", it.id).put("t", it.title).put("l", it.link).put("s", it.source).put("at", it.time) })
+    /** The Nitter server that answered last, tried first next time. */
+    var nitter: String
+        get() = p.getString("nitter", Voices.NITTER.first())!!
+        set(v) = p.edit().putString("nitter", v).apply()
 
     var cot: List<Cot>
         get() = array("cot").map { Cot(it.getString("d"), it.getLong("m"), it.getLong("f")) }

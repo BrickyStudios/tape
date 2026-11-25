@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
@@ -149,6 +150,7 @@ private fun App(tab: MutableIntState, opened: MutableState<String?>) {
     val posts by Wire.posts.collectAsStateWithLifecycle()
     val cot by Wire.cot.collectAsStateWithLifecycle()
     val levels by Wire.levels.collectAsStateWithLifecycle()
+    val voiceItems by Wire.voices.collectAsStateWithLifecycle()
     val store = remember { Store(ctx) }
     var favorites by remember { mutableStateOf(store.favorites) }
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -181,13 +183,19 @@ private fun App(tab: MutableIntState, opened: MutableState<String?>) {
         if (adding) scope.launch { Wire.check(ctx, stocksNow = true) } // news, prices and levels for it right away
     }
 
+    // tagging 600 headlines against every stock is the heaviest work on screen: only when headlines or stocks change, never per frame
     val all = items.orEmpty()
-    val watchlist = all.map { News.tag(it, favorites) }.filter { it.tickers.isNotEmpty() }
-    val wire = all.filter { it.wire }.map { News.tag(it, favorites) }
-    val counts = listOf(Alerts.newCount(watchlist, seen[0]), Alerts.newCount(wire, seen[1]), 0, 0)
+    val watchlist = remember(all, favorites) { all.map { News.tag(it, favorites) }.filter { it.tickers.isNotEmpty() } }
+    val wire = remember(all, favorites) { all.filter { it.wire }.map { News.tag(it, favorites) } }
+    val important = remember(watchlist) { watchlist.filter { Alerts.kind(it.title, it.source) != null }.take(10) }
+    // videos and posts that name one of your stocks join its news, never the counts or the important ones: they do not ring either
+    val voicesTagged = remember(voiceItems, favorites) { voiceItems.map { News.tag(it, favorites) }.filter { it.tickers.isNotEmpty() } }
+    val more = remember(watchlist, important, voicesTagged) { News.merge(watchlist.filter { it !in important }, voicesTagged).take(20) }
+    val voicesOn = remember(checked) { store.youtubeOn || store.xOn }
+    val counts = remember(watchlist, wire, seen[0], seen[1]) { listOf(Alerts.newCount(watchlist, seen[0]), Alerts.newCount(wire, seen[1]), 0, 0) }
     val zone = remember { java.time.ZoneId.systemDefault() }
     val redditPosts = remember(checked) { store.redditPosts }
-    val byQuote = (quotes + market).associateBy { it.symbol }
+    val byQuote = remember(quotes, market) { (quotes + market).associateBy { it.symbol } }
     val pricesError = remember(checked) { store.status[Wire.PRICES]?.error }
     val status = statusLine(now, checked, checking)
     val words = remember(checked) { store.words }
@@ -223,7 +231,7 @@ private fun App(tab: MutableIntState, opened: MutableState<String?>) {
                     mention = mentions.firstOrNull { it.symbol == detail },
                     follow = fav,
                     plain = detail in MARKET,
-                    news = if (fav != null) watchlist.filter { detail in it.tickers } else emptyList(),
+                    news = if (fav != null) News.merge(watchlist, voicesTagged).filter { detail in it.tickers } else emptyList(),
                     levels = levels[detail],
                     now = now,
                     threshold = store.threshold,
@@ -234,7 +242,7 @@ private fun App(tab: MutableIntState, opened: MutableState<String?>) {
             else -> Glassed(Modifier.fillMaxSize(), chrome = {
                 UpdateBanner(Modifier.align(Alignment.TopCenter).padding(horizontal = 16.dp, vertical = 8.dp))
                 BottomBar(
-                    { pager.currentPage + pager.currentPageOffsetFraction }, pager.currentPage, counts,
+                    pager, counts,
                     Modifier.align(Alignment.BottomCenter).padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
                     onTab = { tab.intValue = it },
                 ) { searching = true }
@@ -253,7 +261,7 @@ private fun App(tab: MutableIntState, opened: MutableState<String?>) {
                                         val q = byQuote[f.symbol]
                                         QuoteRow(
                                             f.symbol, f.name, q, points[f.symbol], plain = false, mono = true, stale = stale(f.symbol, q, now), ext = ext[f.symbol],
-                                            hint = earningHint(Agenda.next(earnings, f.symbol, now, zone), now), chance = chanceHint(levels[f.symbol], q),
+                                            hint = earningHint(Agenda.next(earnings, f.symbol, now, zone), now), signal = signalHint(levels[f.symbol], q, f.own),
                                         ) { opened.value = f.symbol }
                                     }
                                 }
@@ -265,12 +273,10 @@ private fun App(tab: MutableIntState, opened: MutableState<String?>) {
                                     )
                                     HorizontalDivider(color = Hairline)
                                 }
-                                val important = watchlist.filter { Alerts.kind(it.title, it.source) != null }.take(10)
                                 if (important.isNotEmpty()) {
                                     item { Section(R.string.important_today) }
                                     items(important, key = { "i:" + it.id }) { HeadlineRow(it, now) }
                                 }
-                                val more = watchlist.filter { it !in important }.take(20)
                                 if (more.isNotEmpty()) {
                                     item { Section(R.string.more_news) }
                                     items(more, key = { "m:" + it.id }) { HeadlineRow(it, now) }
@@ -299,12 +305,16 @@ private fun App(tab: MutableIntState, opened: MutableState<String?>) {
                                     val top = Reddit.top(posts, "wallstreetbets") + Reddit.top(posts, "mauerstrassenwetten")
                                     items(top, key = { "rp:" + it.id }) { PostRow(it, now) }
                                 }
+                                if (voicesOn && voiceItems.isNotEmpty()) {
+                                    item { Section(R.string.section_voices) }
+                                    items(voiceItems.take(12), key = { "v:" + it.id }) { HeadlineRow(it, now) }
+                                }
                                 item { Section(R.string.ticker) }
                                 if (wire.isEmpty()) item { Text(stringResource(R.string.empty_news), style = MetaStyle, modifier = Modifier.padding(vertical = 12.dp)) }
                                 items(wire.take(60), key = { "w:" + it.id }) { i -> HeadlineRow(i, now, Alerts.alertWord(i.title, words)?.let { "$wordTag $it" }) }
                             }
                             AGENDA -> Page(stringResource(R.string.tab_agenda), status, pulled, { refresh() }) {
-                                agendaItems(releases, earnings, favorites, now) { opened.value = it }
+                                agendaItems(releases, earnings, favorites, byQuote, now) { opened.value = it }
                             }
                             else -> Setup(now, favorites, onFavorites = { favorites = it }) { searching = true }
                         }
@@ -374,11 +384,13 @@ private fun MarketRow(symbol: String, quote: Quote?, points: List<Double>?, now:
  * Search sits beside it in its own glass circle, reachable from every tab.
  */
 @Composable
-private fun BottomBar(position: () -> Float, current: Int, counts: List<Int>, modifier: Modifier, onTab: (Int) -> Unit, onSearch: () -> Unit) {
+private fun BottomBar(pager: PagerState, counts: List<Int>, modifier: Modifier, onTab: (Int) -> Unit, onSearch: () -> Unit) {
+    // the pager is read here, not in App: a swipe recomposes only the bar, and the pill moves in the layout phase alone
+    val current = pager.currentPage
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         BoxWithConstraints(Modifier.weight(1f).height(56.dp).glass()) {
             val quarter = maxWidth / 4
-            Box(Modifier.offset { IntOffset((quarter * position()).roundToPx(), 0) }.width(quarter).fillMaxHeight().padding(4.dp).background(Text1.copy(alpha = 0.10f), Pill))
+            Box(Modifier.offset { IntOffset((quarter * (pager.currentPage + pager.currentPageOffsetFraction)).roundToPx(), 0) }.width(quarter).fillMaxHeight().padding(4.dp).background(Text1.copy(alpha = 0.10f), Pill))
             Row(Modifier.fillMaxSize()) {
                 listOf(R.string.tab_watchlist, R.string.tab_market, R.string.tab_agenda, R.string.tab_setup).forEachIndexed { i, label ->
                     val on = current == i

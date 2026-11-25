@@ -267,8 +267,8 @@
     <string name="search_note">Any stock or ETF. Open one for its chart, news and buying chances</string>
     <string name="search_close">Close search</string>
     <string name="news_loading">Loading news</string>
-    <string name="chance_title">Buying chance</string>
-    <string name="chance_count">Signs of a buying chance: %1$d of 4</string>
+    <string name="chance_title">Signals</string>
+    <string name="chance_count">Buying chance: %1$d of 4</string>
     <string name="chance_avg200">200-day line</string>
     <string name="chance_low">52-week low</string>
     <string name="chance_high">From the 52-week high</string>
@@ -278,7 +278,7 @@
     <string name="rsi_oversold">oversold</string>
     <string name="rsi_overbought">overbought</string>
     <string name="rsi_neutral">neutral</string>
-    <string name="chance_rules" formatted="false">A sign counts when the price is within 5 % under and 3 % over the 200-day line or at most 5 % above the 52-week low, at least 20 % under the 52-week high, or when the RSI is under 30. Rules of thumb, not investment advice.</string>
+    <string name="chance_rules" formatted="false">Buying chance: the price is within 5 % under and 3 % over the 200-day line, at most 5 % above the 52-week low, at least 20 % under the 52-week high, or the RSI is under 30. Sell signal: the RSI is over 70, the price is at least 25 % over the 200-day line, or the P/E is over 40; fast growers often sit higher. Earnings per share are the companies\' adjusted figures from the last four reports. Rules of thumb, not investment advice.</string>
     <string name="chance_loading">Loading a year of prices</string>
     <string name="chance_none">Too little price history for these signs</string>
     <string name="hint_low">Near its 52-week low</string>
@@ -287,4 +287,25 @@
     <string name="hint_drawdown">%1$s under its high</string>
     <string name="german">German sources</string>
     <string name="german_note">onvista, Handelsblatt and FAZ, in German. Tape reads events and tone from German words too</string>
+    <string name="sell_count">Sell signal: %1$d of 3</string>
+    <string name="chance_pe">P/E, last 4 quarters</string>
+    <string name="chance_eps">Earnings per share</string>
+    <string name="pe_loss">loss, no P/E</string>
+    <string name="hint_overbought">Overbought, RSI %1$d</string>
+    <string name="hint_stretched">%1$s over its 200-day line</string>
+    <string name="hint_pricey">Richly valued, P/E %1$d</string>
+    <string name="result_beat">beat</string>
+    <string name="result_miss">missed</string>
+    <string name="result_inline">in line</string>
+    <string name="result_eps">%1$s vs %2$s expected</string>
+    <string name="since_report">since</string>
+    <string name="yesterday">Yesterday</string>
+    <string name="section_voices">Investors on YouTube and X</string>
+    <string name="youtube_on">YouTube channels</string>
+    <string name="youtube_note">New videos under Market, without sound. A video that names one of your stocks also shows on its page</string>
+    <string name="x_on">Posts on X</string>
+    <string name="x_note">Through volunteer-run Nitter servers, because X gives nothing out without an account. X acts against these servers, so posts can stop for a while</string>
+    <string name="voice_hint_youtube">YouTube link or @channel</string>
+    <string name="voice_hint_x">@account on X</string>
+    <string name="voice_bad">Not found. Check the name, or the servers may be down</string>
 </resources>

@@ -5,6 +5,7 @@ The tokens live in `app/src/main/java/io/github/brickystudios/tape/Ui.kt`. This 
 ## Direction
 
 - **Product:** prices and the news that moves them, for the stocks you follow, without ads.
+- **Principle:** as much as possible at one glance, as plain statements: "beat · 9.45 vs 6.59", "Overbought, RSI 74", "39 % under its high". A number always comes with what it means; a row says one thing, the stock's page says all of it.
 - **Character:** calm, exact, a little nocturnal.
 - **World:** a trading desk at night: graphite surfaces, one amber lamp.
 - **Moment:** the price rows, each with today's line and a coloured change tag.
@@ -22,8 +23,8 @@ The tokens live in `app/src/main/java/io/github/brickystudios/tape/Ui.kt`. This 
 | `Hairline` | `Text1` at 8 % | row dividers |
 | `Glass` | `Raised` at 80 % | tint of the floating glass; nearly solid on Android 11 and older, which cannot blur |
 | `Amber` | `#F2A93B` | fresh clocks, new-item counts, a market that trades right now ("open until 17:30"), the primary action ("Find a stock"), a chosen Watch / I own this button, a buying chance that holds |
-| `Up` | `#7CC45A` | price up and "rather positive" only (OKLCH hue 137, away from teal) |
-| `Down` | `#E5484D` | price down, "rather negative" and source errors only |
+| `Up` | `#7CC45A` | price up, "rather positive" and a beaten estimate (OKLCH hue 137, away from teal) |
+| `Down` | `#E5484D` | price down, "rather negative", a sell signal, a missed estimate and source errors |
 
 Colour never carries direction alone: changes always show ▲ or ▼.
 
@@ -51,5 +52,7 @@ Motion explains where you are: the pill under the tabs follows the pages 1:1 whi
 - `BottomBar`: the four tabs in one glass capsule, labels 13 sp, a `Text1`-at-10 % pill under the open tab, counts in amber mono 11 sp; the search circle (56 dp) to its right.
 - `Search`: field on `Raised` with the hint "Name, symbol or ISIN", results while typing (300 ms pause), rows on the symbol column grid; a stock already on the list says "Watching" or "In my portfolio" in `Text3`.
 - `FollowButton`: two pills under the price, `Raised` when off, `Amber` at 16 % with amber text and a ✓ when on.
-- `ChanceBlock`: section "Buying chance", one line "Signs of a buying chance: 2 of 4" (amber when any holds), a 2 × 2 grid of rules with the level as value and the distance below it, an amber ✓ before a rule that holds, the rules in `Text3` underneath. The first rule that holds goes under the stock's row in amber.
+- `ChanceBlock`: section "Signals", two lines "Buying chance: 2 of 4" (amber when any holds) and "Sell signal: 1 of 3" (`Down` when any holds), a 2 × 3 grid (200-day line, RSI, 52-week low, from the high, P/E, earnings per share) with the level as value and the distance below it, a dot before a rule that holds (amber to buy, `Down` to sell), the rules in `Text3` underneath. The leading rule goes under the stock's row in its colour, the sell signal first for an owned stock.
+- `EarningRow` after a report: the verdict word in colour (beat `Up`, missed `Down`, in line `Text1`) and "9.45 vs 6.59" in the meta line, the move since as a `ChangeTag` on the right with "since" under it. Yesterday's reports stay on the Dates tab, because today's prices answer them.
+- Videos and posts (YouTube, X) use `HeadlineRow` with "· YouTube" or "· X" after the name.
 - `Title`: page title with the market status and last check in monospace below.

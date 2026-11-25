@@ -140,7 +140,9 @@ fun HeadlineRow(item: Item, now: Long, tag: String? = null) {
             Text(item.title, style = HeadlineStyle, maxLines = 4, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.height(4.dp))
             // a row that scrolls back into view reads its headline once, not on every pass
-            val kind = remember(item.id, item.tickers.isNotEmpty()) { if (item.tickers.isNotEmpty()) Alerts.kind(item.title, item.source) else null }
+            // a video or post is an opinion: no event label and no tone, only which stocks it names
+            val voice = item.id.startsWith("yt:") || item.id.startsWith("x:")
+            val kind = remember(item.id, item.tickers.isNotEmpty()) { if (item.tickers.isNotEmpty() && !voice) Alerts.kind(item.title, item.source) else null }
             val tone = remember(item.id) { Alerts.tone(item.title) }
             val kindLabel = kind?.let { stringResource(Notify.kindLabel(it)) }
             val toneUp = stringResource(R.string.tone_up)

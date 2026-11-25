@@ -26,6 +26,11 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
@@ -188,9 +193,10 @@ private fun App(tab: MutableIntState, opened: MutableState<String?>) {
     val watchlist = remember(all, favorites) { all.map { News.tag(it, favorites) }.filter { it.tickers.isNotEmpty() } }
     val wire = remember(all, favorites) { all.filter { it.wire }.map { News.tag(it, favorites) } }
     val important = remember(watchlist) { watchlist.filter { Alerts.kind(it.title, it.source) != null }.take(10) }
-    // videos and posts that name one of your stocks join its news, never the counts or the important ones: they do not ring either
-    val voicesTagged = remember(voiceItems, favorites) { voiceItems.map { News.tag(it, favorites) }.filter { it.tickers.isNotEmpty() } }
-    val more = remember(watchlist, important, voicesTagged) { News.merge(watchlist.filter { it !in important }, voicesTagged).take(20) }
+    // videos and posts are opinions, kept apart from the news: tagged to any stock they name, shown in their own sections, never ringing
+    val voicesTagged = remember(voiceItems, favorites) { voiceItems.map { it.copy(tickers = Voices.symbols(it.title, favorites)) } }
+    val voicesMine = remember(voicesTagged, favorites) { favorites.mapTo(HashSet()) { it.symbol }.let { mine -> voicesTagged.filter { v -> v.tickers.any { it in mine } } } }
+    val more = remember(watchlist, important) { watchlist.filter { it !in important }.take(20) }
     val voicesOn = remember(checked) { store.youtubeOn || store.xOn }
     val counts = remember(watchlist, wire, seen[0], seen[1]) { listOf(Alerts.newCount(watchlist, seen[0]), Alerts.newCount(wire, seen[1]), 0, 0) }
     val zone = remember { java.time.ZoneId.systemDefault() }
@@ -231,7 +237,8 @@ private fun App(tab: MutableIntState, opened: MutableState<String?>) {
                     mention = mentions.firstOrNull { it.symbol == detail },
                     follow = fav,
                     plain = detail in MARKET,
-                    news = if (fav != null) News.merge(watchlist, voicesTagged).filter { detail in it.tickers } else emptyList(),
+                    news = if (fav != null) watchlist.filter { detail in it.tickers } else emptyList(),
+                    voices = voicesTagged.filter { detail in it.tickers },
                     levels = levels[detail],
                     now = now,
                     threshold = store.threshold,
@@ -277,6 +284,10 @@ private fun App(tab: MutableIntState, opened: MutableState<String?>) {
                                     item { Section(R.string.important_today) }
                                     items(important, key = { "i:" + it.id }) { HeadlineRow(it, now) }
                                 }
+                                if (voicesOn && voicesMine.isNotEmpty()) {
+                                    item { Section(R.string.section_voices_mine) }
+                                    items(voicesMine.take(5), key = { "vm:" + it.id }) { HeadlineRow(it, now) }
+                                }
                                 if (more.isNotEmpty()) {
                                     item { Section(R.string.more_news) }
                                     items(more, key = { "m:" + it.id }) { HeadlineRow(it, now) }
@@ -305,9 +316,12 @@ private fun App(tab: MutableIntState, opened: MutableState<String?>) {
                                     val top = Reddit.top(posts, "wallstreetbets") + Reddit.top(posts, "mauerstrassenwetten")
                                     items(top, key = { "rp:" + it.id }) { PostRow(it, now) }
                                 }
-                                if (voicesOn && voiceItems.isNotEmpty()) {
+                                if (voicesOn && voicesTagged.isNotEmpty()) {
                                     item { Section(R.string.section_voices) }
-                                    items(voiceItems.take(12), key = { "v:" + it.id }) { HeadlineRow(it, now) }
+                                    // at a glance first: which stocks they talk about today, each a way into that stock's page
+                                    val talk = Voices.talk(voicesTagged, now)
+                                    if (talk.isNotEmpty()) item { TalkRow(talk) { opened.value = it } }
+                                    items(voicesTagged.take(12), key = { "v:" + it.id }) { HeadlineRow(it, now) }
                                 }
                                 item { Section(R.string.ticker) }
                                 if (wire.isEmpty()) item { Text(stringResource(R.string.empty_news), style = MetaStyle, modifier = Modifier.padding(vertical = 12.dp)) }
@@ -322,6 +336,26 @@ private fun App(tab: MutableIntState, opened: MutableState<String?>) {
                 }
                 // content fades out before it reaches the floating tabs, so they stay readable
                 Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(120.dp).background(Brush.verticalGradient(listOf(Color.Transparent, Ink.copy(alpha = 0.92f)))))
+            }
+        }
+    }
+}
+
+/** "Talked about today: NVDA 4 · TSLA 2": the symbols in mono, each opens its stock, the counts muted. */
+@Composable
+private fun TalkRow(talk: List<Pair<String, Int>>, onOpen: (String) -> Unit) {
+    Column(Modifier.padding(bottom = 8.dp)) {
+        Text(stringResource(R.string.voices_talk), style = MetaStyle)
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            talk.forEach { (symbol, n) ->
+                Row(
+                    Modifier.heightIn(min = 40.dp).clip(RoundedCornerShape(8.dp)).background(Raised).clickable { onOpen(symbol) }.padding(horizontal = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(symbol, fontSize = 14.sp, fontFamily = FontFamily.Monospace, color = Text1)
+                    Spacer(Modifier.width(6.dp))
+                    Text(n.toString(), fontSize = 13.sp, color = Text3, style = Tnum)
+                }
             }
         }
     }

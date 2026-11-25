@@ -36,7 +36,7 @@ data class Item(
 data class Favorite(val symbol: String, val name: String, val exchange: String = "", val own: Boolean = false) {
     /** The word headlines use for the company: "Amazon.com, Inc." → "Amazon", "Procter & Gamble Company (The)" → "Procter". */
     val keyword: String
-        get() = name.trim().substringBefore(' ').substringBefore(',').removeSuffix(".com").ifEmpty { symbol }
+        get() = name.trim().removePrefix("The ").substringBefore(' ').substringBefore(',').removeSuffix(".com").ifEmpty { symbol }
 
     val words: List<String> get() = listOf(keyword) + ALIASES[symbol].orEmpty()
 }
@@ -57,16 +57,18 @@ object News {
 
     /**
      * Setup's "German sources", off by default: onvista's market news (dpa-AFX and own analyses), Handelsblatt and FAZ finance.
-     * Tested 25.11.2026: finanzen.net refuses apps (403); Der Aktionär is mostly hype ("100 Prozent möglich"); wallstreet-online has no dates.
+     * Der Aktionär on request: its headlines lean loud ("100 Prozent möglich"), but readers follow it.
+     * Tested 25.11.2026: finanzen.net refuses apps (403); wallstreet-online has no dates.
      */
     val GERMAN_FEEDS = listOf(
         Feed("onvista", "https://www.onvista.de/news/feed/rss.xml"),
         Feed("Handelsblatt", "https://www.handelsblatt.com/contentexport/feed/finanzen"),
         Feed("FAZ Finanzen", "https://www.faz.net/rss/aktuell/finanzen/"),
+        Feed("Der Aktionär", "https://www.deraktionaer.de/aktionaer-news.rss"),
     )
 
-    /** Ads some feeds slip between the news ("Black Week: 50 % Rabatt auf alle Abos"). */
-    private val PROMO = Regex("""Rabatt|Black Week""", RegexOption.IGNORE_CASE)
+    /** Ads some feeds and accounts slip between the news ("Black Week: 50 % Rabatt auf alle Abos", "sale ends Saturday, 25% off"). */
+    val PROMO = Regex("""Rabatt|Black Week|\d+\s?% off|sale ends|promo code|discount code""", RegexOption.IGNORE_CASE)
 
     private fun enc(s: String) = URLEncoder.encode(s, "UTF-8")
     fun stockUrl(symbol: String) = "https://query2.finance.yahoo.com/v1/finance/search?q=${enc(symbol)}&newsCount=10&quotesCount=0"
@@ -145,11 +147,13 @@ object News {
      * Headlines that name the company are the ones about it: of 80 Yahoo results for 8 stocks, the rest was mostly fund lists and market wraps.
      */
     fun mentions(title: String, f: Favorite): Boolean {
-        for (word in f.words) {
-            if (word.length >= 3 && rx("w:$word") { Regex("(?<![A-Za-z0-9])${Regex.escape(word)}(?![A-Za-z0-9])", RegexOption.IGNORE_CASE) }.containsMatchIn(title)) return true
-        }
+        for (word in f.words) if (hasWord(title, word)) return true
         return f.symbol.length >= 3 && rx("s:${f.symbol}") { Regex("(?<![A-Za-z0-9])\\$?${Regex.escape(f.symbol)}(?![A-Za-z0-9])") }.containsMatchIn(title)
     }
+
+    /** The word as a whole word, any case: "Intel" in "Intel cuts", not in "Intelligence". Words under 3 letters never count. */
+    fun hasWord(title: String, word: String): Boolean =
+        word.length >= 3 && rx("w:$word") { Regex("(?<![A-Za-z0-9])${Regex.escape(word)}(?![A-Za-z0-9])", RegexOption.IGNORE_CASE) }.containsMatchIn(title)
 
     /** Each stock's patterns built once: tagging runs over hundreds of headlines whenever they or the stocks change. */
     private val patterns = java.util.concurrent.ConcurrentHashMap<String, Regex>()

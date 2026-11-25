@@ -22,6 +22,8 @@ object Voices {
         Voice(true, "UCeARcCUiZg79SQQ-2_XNlXQ", "Finanzfluss"),
         Voice(true, "UCpV9LpCg4uwYCQZ3qoEn_YQ", "Aktien mit Kopf"),
         Voice(true, "UCdYgvhtx9v7mWiSFxepLM2w", "Tim Schäfer"),
+        Voice(true, "UCJSlXY7qCCQqpbv_-WspoFQ", "aktienlust"),
+        Voice(true, "UC62IIFhchBWQxLPSyUatD-A", "DER AKTIONÄR TV"),
         Voice(true, "UCUvvj5lwue7PspotMDjk5UA", "Meet Kevin"),
         Voice(true, "UCGy7SkBjcIAgTiwkXEtPnYg", "Andrei Jikh"),
         Voice(true, "UCJwKCyEIFHwUOPQQ-4kC1Zw", "Tom Nash"),
@@ -52,6 +54,47 @@ object Voices {
         runCatching { setFeature("http://apache.org/xml/features/disallow-doctype-decl", true) }
     }.newDocumentBuilder().parse(InputSource(StringReader(xml)))
 
+    // shortcut: a fixed list of big names, for videos and posts about stocks you do not follow; upgrade to a lookup if names go missing
+    /** Symbol → the words videos and posts use for the company. Your own stocks match first, by their own names. */
+    val KNOWN = mapOf(
+        "NVDA" to listOf("Nvidia"), "AAPL" to listOf("Apple"), "MSFT" to listOf("Microsoft"), "AMZN" to listOf("Amazon"), "GOOGL" to listOf("Alphabet", "Google"),
+        "META" to listOf("Meta", "Facebook"), "TSLA" to listOf("Tesla"), "NFLX" to listOf("Netflix"), "AMD" to listOf("AMD"), "INTC" to listOf("Intel"),
+        "PLTR" to listOf("Palantir"), "AVGO" to listOf("Broadcom"), "TSM" to listOf("TSMC"), "ASML" to listOf("ASML"), "MU" to listOf("Micron"),
+        "ORCL" to listOf("Oracle"), "CRM" to listOf("Salesforce"), "ADBE" to listOf("Adobe"), "COIN" to listOf("Coinbase"), "HOOD" to listOf("Robinhood"),
+        "UBER" to listOf("Uber"), "DIS" to listOf("Disney"), "NKE" to listOf("Nike"), "SBUX" to listOf("Starbucks"), "KO" to listOf("Coca-Cola"),
+        "MCD" to listOf("McDonald's"), "WMT" to listOf("Walmart"), "COST" to listOf("Costco"), "JPM" to listOf("JPMorgan"), "BRK-B" to listOf("Berkshire"),
+        "V" to listOf("Visa"), "MA" to listOf("Mastercard"), "PYPL" to listOf("PayPal"), "BABA" to listOf("Alibaba"), "NVO" to listOf("Novo Nordisk"),
+        "LLY" to listOf("Eli Lilly"), "PFE" to listOf("Pfizer"), "BA" to listOf("Boeing"), "SMCI" to listOf("Super Micro", "Supermicro"), "DELL" to listOf("Dell"),
+        "CRWD" to listOf("CrowdStrike"), "SHOP" to listOf("Shopify"), "SPOT" to listOf("Spotify"), "AXON" to listOf("Axon"), "RKLB" to listOf("Rocket Lab"),
+        "SAP.DE" to listOf("SAP"), "SIE.DE" to listOf("Siemens"), "ALV.DE" to listOf("Allianz"), "RHM.DE" to listOf("Rheinmetall"), "DTE.DE" to listOf("Telekom"),
+        "DBK.DE" to listOf("Deutsche Bank"), "MBG.DE" to listOf("Mercedes"), "BMW.DE" to listOf("BMW"), "VOW3.DE" to listOf("Volkswagen", "VW"), "BAS.DE" to listOf("BASF"),
+        "BAYN.DE" to listOf("Bayer"), "IFX.DE" to listOf("Infineon"), "ADS.DE" to listOf("Adidas"), "MUV2.DE" to listOf("Munich Re", "Münchener Rück"),
+        "HNR1.DE" to listOf("Hannover Rück"), "CBK.DE" to listOf("Commerzbank"), "AIXA.DE" to listOf("Aixtron"), "ENR.DE" to listOf("Siemens Energy"),
+        "AIR.DE" to listOf("Airbus"), "RENK.DE" to listOf("Renk"), "HAG.DE" to listOf("Hensoldt"), "ZAL.DE" to listOf("Zalando"), "LHA.DE" to listOf("Lufthansa"),
+        "RWE.DE" to listOf("RWE"), "VNA.DE" to listOf("Vonovia"), "DHL.DE" to listOf("DHL"),
+    )
+
+    private val CASHTAG = Regex("""(?<![A-Za-z0-9])\${'$'}([A-Z]{1,5})(?![A-Za-z0-9])""")
+
+    /**
+     * The stocks a video or post is about: your own by their names, a cashtag ("$AXON") as written, then the big names in [KNOWN].
+     * A word one of your stocks already took (SAP for SAP.DE) does not tag a second symbol.
+     */
+    fun symbols(title: String, favorites: List<Favorite>): List<String> {
+        val mine = favorites.filter { News.mentions(title, it) }
+        val taken = mine.flatMap { it.words }.mapTo(HashSet()) { it.lowercase() }
+        val tagged = CASHTAG.findAll(title).map { it.groupValues[1] }.toList()
+        val known = KNOWN.filter { (_, words) -> words.any { it.lowercase() !in taken && News.hasWord(title, it) } }.keys
+        val mineSymbols = mine.map { it.symbol }
+        // a cashtag for a stock you hold under another listing ($SAP for SAP.DE) stays with yours
+        return (mineSymbols + tagged.filter { t -> mineSymbols.none { it.substringBefore('.') == t } } + known).distinct()
+    }
+
+    /** The symbols named most in the last day, most first: "NVDA 4 · TSLA 2" at the top of the list. */
+    fun talk(items: List<Item>, now: Long, top: Int = 6): List<Pair<String, Int>> =
+        items.filter { now - it.time in 0..24 * HOUR }.flatMap { it.tickers.distinct() }.groupingBy { it }.eachCount()
+            .entries.sortedWith(compareByDescending<Map.Entry<String, Int>> { it.value }.thenBy { it.key }).take(top).map { it.key to it.value }
+
     /** A channel's Atom feed: its 15 newest videos. */
     fun parseYouTube(xml: String, name: String): List<Item> {
         val entries = parse(xml).getElementsByTagName("entry")
@@ -59,7 +102,8 @@ object Voices {
             val e = entries.item(i) as Element
             fun text(tag: String) = e.getElementsByTagName(tag).item(0)?.textContent?.trim().orEmpty()
             val id = text("yt:videoId").ifEmpty { return@mapNotNull null }
-            val title = text("title").ifEmpty { return@mapNotNull null }
+            // "🚨 CRASH BEI GOLD" → "CRASH BEI GOLD": emoji go, as in Reddit titles
+            val title = text("title").replace(Reddit.EMOJI, "").replace(Regex("\\s+"), " ").trim().ifEmpty { return@mapNotNull null }
             val time = runCatching { OffsetDateTime.parse(text("published")).toInstant().toEpochMilli() }.getOrNull() ?: return@mapNotNull null
             Item("yt:$id", title, "https://www.youtube.com/watch?v=$id", name, time)
         }
@@ -71,8 +115,9 @@ object Voices {
         return (0 until items.length).mapNotNull { i ->
             val e = items.item(i) as Element
             fun text(tag: String) = e.getElementsByTagName(tag).item(0)?.textContent?.trim().orEmpty()
-            val title = text("title").replace(Regex("\\s+"), " ").trim()
-            if (title.isEmpty() || title.startsWith("RT by @") || title.startsWith("R to @")) return@mapNotNull null
+            // links and emoji go, the words stay: "long. 😂 https://finance.yahoo.com/…" → "long."
+            val title = text("title").replace(Regex("""https?://\S+"""), "").replace(Reddit.EMOJI, "").replace(Regex("\\s+"), " ").trim()
+            if (title.isEmpty() || title.startsWith("RT by @") || title.startsWith("R to @") || News.PROMO.containsMatchIn(title)) return@mapNotNull null
             val id = Regex("/status/(\\d+)").find(text("link"))?.groupValues?.get(1) ?: return@mapNotNull null
             val time = runCatching { ZonedDateTime.parse(text("pubDate"), DateTimeFormatter.RFC_1123_DATE_TIME).toInstant().toEpochMilli() }.getOrNull() ?: return@mapNotNull null
             Item("x:$id", title, "https://x.com/$handle/status/$id", name, time)

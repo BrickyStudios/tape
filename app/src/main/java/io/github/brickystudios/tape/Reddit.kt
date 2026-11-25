@@ -27,7 +27,7 @@ object Reddit {
     val SOURCES = listOf(Triple("wallstreetbets", "DD", 2), Triple("wallstreetbets", "News", 2), Triple("mauerstrassenwetten", null, 4))
 
     private fun enc(s: String) = URLEncoder.encode(s, "UTF-8")
-    private val EMOJI = Regex("[\\p{So}\\x{1F000}-\\x{1FAFF}\\x{2600}-\\x{27BF}\\x{FE0F}\\x{200D}]")
+    val EMOJI = Regex("[\\p{So}\\x{1F000}-\\x{1FAFF}\\x{2600}-\\x{27BF}\\x{FE0F}\\x{200D}]")
 
     fun postsUrl(sub: String, flair: String?, now: Long, days: Int): String =
         "$ARCHIVE?subreddit=$sub&after=${(now - days * 24 * HOUR) / 1000}&limit=100&fields=id,subreddit,title,link_flair_text,score,num_comments,created_utc,selftext" +

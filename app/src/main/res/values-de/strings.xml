@@ -284,7 +284,7 @@
     <string name="hint_oversold">Überverkauft, RSI %1$d</string>
     <string name="hint_drawdown">%1$s unter dem Jahreshoch</string>
     <string name="german">Deutsche Quellen</string>
-    <string name="german_note">onvista, Handelsblatt und FAZ. Ereignis und Tendenz erkennt Tape auch an deutschen Wörtern</string>
+    <string name="german_note">onvista, Handelsblatt, FAZ und Der Aktionär. Ereignis und Tendenz erkennt Tape auch an deutschen Wörtern</string>
     <string name="sell_count">Verkaufssignal: %1$d von 3</string>
     <string name="chance_pe">KGV, letzte 4 Quartale</string>
     <string name="chance_eps">Gewinn je Aktie</string>
@@ -306,4 +306,6 @@
     <string name="voice_hint_youtube">YouTube-Link oder @Kanal</string>
     <string name="voice_hint_x">@Konto auf X</string>
     <string name="voice_bad">Nicht gefunden. Prüf den Namen, oder die Server sind gerade weg</string>
+    <string name="section_voices_mine">Influencer zu deinen Aktien</string>
+    <string name="voices_talk">Heute am meisten genannt</string>
 </resources>

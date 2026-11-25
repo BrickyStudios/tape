@@ -286,7 +286,7 @@
     <string name="hint_oversold">Oversold, RSI %1$d</string>
     <string name="hint_drawdown">%1$s under its high</string>
     <string name="german">German sources</string>
-    <string name="german_note">onvista, Handelsblatt and FAZ, in German. Tape reads events and tone from German words too</string>
+    <string name="german_note">onvista, Handelsblatt, FAZ and Der Aktionär, in German. Tape reads events and tone from German words too</string>
     <string name="sell_count">Sell signal: %1$d of 3</string>
     <string name="chance_pe">P/E, last 4 quarters</string>
     <string name="chance_eps">Earnings per share</string>
@@ -308,4 +308,6 @@
     <string name="voice_hint_youtube">YouTube link or @channel</string>
     <string name="voice_hint_x">@account on X</string>
     <string name="voice_bad">Not found. Check the name, or the servers may be down</string>
+    <string name="section_voices_mine">Investors on your stocks</string>
+    <string name="voices_talk">Talked about most today</string>
 </resources>

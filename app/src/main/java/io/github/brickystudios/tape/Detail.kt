@@ -67,7 +67,8 @@ import java.util.Date
 @Composable
 fun Detail(
     symbol: String, name: String, quote: Quote?, ext: Ext?, earning: Earning?, mention: Mention?, follow: Favorite?, plain: Boolean,
-    news: List<Item>, levels: Levels?, now: Long, threshold: Int, onFollow: (Favorite, Boolean?) -> Unit, onBack: () -> Unit,
+    news: List<Item>, levels: Levels?, now: Long, threshold: Int, onFollow: (Favorite, Boolean?) -> Unit,
+    voices: List<Item> = emptyList(), onBack: () -> Unit,
 ) {
     BackHandler(onBack = onBack)
     val ctx = LocalContext.current
@@ -229,6 +230,11 @@ fun Detail(
                 Text(stringResource(if (!watched && asked == null) R.string.news_loading else R.string.no_news, symbol), style = MetaStyle, modifier = Modifier.padding(vertical = 8.dp))
             }
             items(news.take(30), key = { "n:" + it.id }) { HeadlineRow(it, now) }
+            // opinions in their own section, after the news, so neither reads as the other
+            if (voices.isNotEmpty()) {
+                item { Text(stringResource(R.string.section_voices), style = SectionStyle, modifier = Modifier.padding(top = 32.dp, bottom = 8.dp)) }
+                items(voices.take(10), key = { "v:" + it.id }) { HeadlineRow(it, now) }
+            }
             if (watched) item { Text(stringResource(R.string.alarm_at, threshold), style = MetaStyle.copy(color = Text3), modifier = Modifier.padding(top = 24.dp)) }
         }
     }

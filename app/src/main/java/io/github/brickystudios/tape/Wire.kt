@@ -266,7 +266,8 @@ object Wire {
     /** New videos and posts in front of the kept ones; a channel or account taken off the list drops out with its items. */
     private fun keepVoices(store: Store, got: List<Item>) {
         val names = store.voices.mapTo(HashSet()) { it.name }
-        val v = News.merge(store.voiceItems.filter { it.source in names }, got, Voices.KEEP)
+        // kept items pass the ad filter again, so an ad saved before the filter knew it drops out
+        val v = News.merge(store.voiceItems.filter { it.source in names && !News.PROMO.containsMatchIn(it.title) }, got, Voices.KEEP)
         store.voiceItems = v
         voices.value = v
     }

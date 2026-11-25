@@ -20,7 +20,8 @@ The tokens live in `app/src/main/java/io/github/brickystudios/tape/Ui.kt`. This 
 | `Text2` | `#A1A1A6` | company names, meta lines |
 | `Text3` | `#85858B` | old clocks, hints, dashed previous-close line (4.9:1 on Ink) |
 | `Hairline` | `Text1` at 8 % | row dividers |
-| `Amber` | `#F2A93B` | fresh clocks, new-item counts, a market that trades right now ("open until 17:30"), the primary action ("Add stock", "Search") |
+| `Glass` | `Raised` at 80 % | tint of the floating glass; nearly solid on Android 11 and older, which cannot blur |
+| `Amber` | `#F2A93B` | fresh clocks, new-item counts, a market that trades right now ("open until 17:30"), the primary action ("Find a stock"), a chosen Watch / I own this button, a buying chance that holds |
 | `Up` | `#7CC45A` | price up and "rather positive" only (OKLCH hue 137, away from teal) |
 | `Down` | `#E5484D` | price down, "rather negative" and source errors only |
 
@@ -32,7 +33,13 @@ Roboto (system), monospace for symbols and clocks. Sizes: 28 sp page title and d
 
 ## Spacing and shape
 
-4 dp grid. Page margin 20 dp. Rows: quotes 72 dp, settings 56 dp, touch targets at least 48 dp. Sections: 32 dp above the label, 8 dp below. Radii: 6 dp change tag, 8 dp range and filter buttons, 10 dp inputs, 12 dp the assessment block. No shadows, no gradients, no glow.
+4 dp grid. Page margin 20 dp. Pages end with 104 dp of room (`BAR_ROOM`) so the last line scrolls above the floating tab bar. Rows: quotes 72 dp, settings 56 dp, touch targets at least 48 dp. Sections: 32 dp above the label, 8 dp below. Radii: 6 dp change tag, 8 dp range and filter buttons, 10 dp inputs, 12 dp the assessment block. No shadows, no glow. The one gradient is the fade from transparent to `Ink` under the tab bar, so text never sits half under the glass.
+
+## Glass and motion
+
+Glass only for chrome that floats over content, as in Freehub (Kyant's Liquid Glass, blur 20 dp, refraction at the rim): the tab bar capsule, the search circle beside it, the back capsule on a stock's page and the update card. Never glass on glass, never on content. Shapes are continuous corners (`Pill`, `Card`).
+
+Motion explains where you are: the pill under the tabs follows the pages 1:1 while you swipe, a deeper page (search, a stock) slides in a quarter width from the right in 320 ms with an iOS-like ease-out (0.32, 0.72, 0, 1) and fades out the way it came, buttons sink to 96 % while pressed (100 ms down, 160 ms back), and Watch / I own this give a haptic tick. "Remove animations" in Android's settings stops all of it.
 
 ## Components
 
@@ -41,4 +48,8 @@ Roboto (system), monospace for symbols and clocks. Sizes: 28 sp page title and d
 - `RegionHeader`: section label with the session in 13 sp ("Europe · open until 17:30"). Regions sort by what trades now.
 - `Sparkline` / chart: line in `Up` or `Down` by direction against yesterday's close (`Text2` when the move rounds to 0.0 %), the close dashed in `Text3`.
 - `HeadlineRow`: clock column, headline, meta line `SYMBOL · Event · ▲ rather positive · Source`.
+- `BottomBar`: the four tabs in one glass capsule, labels 13 sp, a `Text1`-at-10 % pill under the open tab, counts in amber mono 11 sp; the search circle (56 dp) to its right.
+- `Search`: field on `Raised` with the hint "Name, symbol or ISIN", results while typing (300 ms pause), rows on the symbol column grid; a stock already on the list says "Watching" or "In my portfolio" in `Text3`.
+- `FollowButton`: two pills under the price, `Raised` when off, `Amber` at 16 % with amber text and a ✓ when on.
+- `ChanceBlock`: section "Buying chance", one line "Signs of a buying chance: 2 of 4" (amber when any holds), a 2 × 2 grid of rules with the level as value and the distance below it, an amber ✓ before a rule that holds, the rules in `Text3` underneath. The first rule that holds goes under the stock's row in amber.
 - `Title`: page title with the market status and last check in monospace below.

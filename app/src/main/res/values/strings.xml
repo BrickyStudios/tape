@@ -8,7 +8,7 @@
     <string name="checked">Checked %s</string>
     <string name="checking">Checking</string>
     <string name="all">All</string>
-    <string name="empty_watchlist">No stocks yet. Add one below</string>
+    <string name="empty_watchlist">No stocks yet. Find one with the search button at the bottom right</string>
     <string name="empty_news">No headlines yet. Pull down to check</string>
 
     <string name="setup_sub">Stocks, feeds and how news reaches you</string>
@@ -84,7 +84,7 @@
     <string name="source_error">Failed at %1$s: %2$s</string>
 
     <string name="tab_market">Market</string>
-    <string name="add_stock">Add stock</string>
+    <string name="add_stock">Find a stock</string>
     <string name="important_today">Important today</string>
     <string name="more_news">More news</string>
     <string name="ticker">Ticker</string>
@@ -256,4 +256,35 @@
     <string name="reddit_comments">%1$s comments</string>
     <string name="reddit_posts">Reddit posts</string>
     <string name="reddit_posts_note">3 posts each from r/wallstreetbets and r/mauerstrassenwetten with research, news, strategy or discussion, no memes. Via Arctic Shift, a free Reddit archive.</string>
+    <!-- 0.7.0: search, watch or own, buying chances -->
+    <string name="section_holding">In my portfolio</string>
+    <string name="section_watching">Watching</string>
+    <string name="follow_watch">Watch</string>
+    <string name="follow_watching">Watching</string>
+    <string name="follow_own">I own this</string>
+    <string name="follow_owned">In my portfolio</string>
+    <string name="search_hint">Name, symbol or ISIN</string>
+    <string name="search_note">Any stock or ETF. Open one for its chart, news and buying chances</string>
+    <string name="search_close">Close search</string>
+    <string name="news_loading">Loading news</string>
+    <string name="chance_title">Buying chance</string>
+    <string name="chance_count">Signs of a buying chance: %1$d of 4</string>
+    <string name="chance_avg200">200-day line</string>
+    <string name="chance_low">52-week low</string>
+    <string name="chance_high">From the 52-week high</string>
+    <string name="chance_rsi">RSI, 14 days</string>
+    <string name="chance_above">%1$s above</string>
+    <string name="chance_below">%1$s below</string>
+    <string name="rsi_oversold">oversold</string>
+    <string name="rsi_overbought">overbought</string>
+    <string name="rsi_neutral">neutral</string>
+    <string name="chance_rules" formatted="false">A sign counts when the price is within 5 % under and 3 % over the 200-day line or at most 5 % above the 52-week low, at least 20 % under the 52-week high, or when the RSI is under 30. Rules of thumb, not investment advice.</string>
+    <string name="chance_loading">Loading a year of prices</string>
+    <string name="chance_none">Too little price history for these signs</string>
+    <string name="hint_low">Near its 52-week low</string>
+    <string name="hint_avg_at">At its 200-day line</string>
+    <string name="hint_oversold">Oversold, RSI %1$d</string>
+    <string name="hint_drawdown">%1$s under its high</string>
+    <string name="german">German sources</string>
+    <string name="german_note">onvista, Handelsblatt and FAZ, in German. Tape reads events and tone from German words too</string>
 </resources>

@@ -25,6 +25,7 @@ data class Chart(
     val name: String,
     val exchange: String,
     val currency: String,
+    val zone: String = "UTC",
 )
 
 /** Chart ranges on the detail page, each with the interval Yahoo serves in a few KB. */
@@ -103,7 +104,7 @@ object Market {
             times, closes, price, m.optDouble("chartPreviousClose"), m.optDouble("regularMarketDayHigh"), m.optDouble("regularMarketDayLow"),
             m.optDouble("fiftyTwoWeekHigh"), m.optDouble("fiftyTwoWeekLow"), m.optLong("regularMarketVolume"),
             m.optString("longName").ifEmpty { m.optString("shortName") }.replace(Regex("\\s+"), " ").trim(),
-            m.optString("fullExchangeName").ifEmpty { m.optString("exchangeName") }, m.optString("currency"),
+            m.optString("fullExchangeName").ifEmpty { m.optString("exchangeName") }, m.optString("currency"), m.optString("exchangeTimezoneName", "UTC"),
         )
     }
 

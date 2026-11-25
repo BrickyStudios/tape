@@ -6,7 +6,7 @@
     <string name="checked">Geprüft %s</string>
     <string name="checking">Prüfe</string>
     <string name="all">Alle</string>
-    <string name="empty_watchlist">Noch keine Aktien. Unten eine hinzufügen</string>
+    <string name="empty_watchlist">Noch keine Aktien. Such eine über die Lupe unten rechts</string>
     <string name="empty_news">Noch keine Meldungen. Zum Prüfen nach unten ziehen</string>
 
     <string name="setup_sub">Aktien, Feeds und wie Meldungen dich erreichen</string>
@@ -82,7 +82,7 @@
     <string name="source_error">Fehler um %1$s: %2$s</string>
 
     <string name="tab_market">Markt</string>
-    <string name="add_stock">Aktie hinzufügen</string>
+    <string name="add_stock">Aktie suchen</string>
     <string name="important_today">Wichtig heute</string>
     <string name="more_news">Weitere Meldungen</string>
     <string name="ticker">Ticker</string>
@@ -254,4 +254,35 @@
     <string name="reddit_comments">%1$s Kommentare</string>
     <string name="reddit_posts">Reddit-Beiträge</string>
     <string name="reddit_posts_note">Je 3 Beiträge aus r/wallstreetbets und r/mauerstrassenwetten mit Recherche, News, Strategie oder Diskussion, keine Memes. Über Arctic Shift, ein freies Reddit-Archiv.</string>
+    <!-- 0.7.0: Suche, merken oder besitzen, Kaufchancen -->
+    <string name="section_holding">Im Depot</string>
+    <string name="section_watching">Gemerkt</string>
+    <string name="follow_watch">Merken</string>
+    <string name="follow_watching">Gemerkt</string>
+    <string name="follow_own">Hab ich</string>
+    <string name="follow_owned">Im Depot</string>
+    <string name="search_hint">Name, Symbol oder ISIN</string>
+    <string name="search_note">Jede Aktie und jeder ETF. Öffne einen Wert für Chart, Nachrichten und Kaufchancen</string>
+    <string name="search_close">Suche schließen</string>
+    <string name="news_loading">Lade Nachrichten</string>
+    <string name="chance_title">Kaufchance</string>
+    <string name="chance_count">Zeichen für eine Kaufchance: %1$d von 4</string>
+    <string name="chance_avg200">200-Tage-Linie</string>
+    <string name="chance_low">52-Wochen-Tief</string>
+    <string name="chance_high">Abstand zum Jahreshoch</string>
+    <string name="chance_rsi">RSI, 14 Tage</string>
+    <string name="chance_above">%1$s darüber</string>
+    <string name="chance_below">%1$s darunter</string>
+    <string name="rsi_oversold">überverkauft</string>
+    <string name="rsi_overbought">überkauft</string>
+    <string name="rsi_neutral">neutral</string>
+    <string name="chance_rules" formatted="false">Ein Zeichen zählt, wenn der Kurs zwischen 5 % unter und 3 % über der 200-Tage-Linie oder höchstens 5 % über dem 52-Wochen-Tief liegt, mindestens 20 % unter dem Jahreshoch, oder wenn der RSI unter 30 fällt. Das sind Faustregeln, keine Anlageberatung.</string>
+    <string name="chance_loading">Lade die Kurse eines Jahres</string>
+    <string name="chance_none">Zu wenig Kursverlauf für diese Zeichen</string>
+    <string name="hint_low">Nahe am 52-Wochen-Tief</string>
+    <string name="hint_avg_at">An der 200-Tage-Linie</string>
+    <string name="hint_oversold">Überverkauft, RSI %1$d</string>
+    <string name="hint_drawdown">%1$s unter dem Jahreshoch</string>
+    <string name="german">Deutsche Quellen</string>
+    <string name="german_note">onvista, Handelsblatt und FAZ. Ereignis und Tendenz erkennt Tape auch an deutschen Wörtern</string>
 </resources>

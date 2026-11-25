@@ -29,8 +29,11 @@ data class Item(
     val wire: Boolean = false,
 )
 
-/** A stock on the watchlist. [exchange]: where it trades, as Yahoo names it ("XETRA", "NasdaqGS"), to tell SAP.DE from SAP. */
-data class Favorite(val symbol: String, val name: String, val exchange: String = "") {
+/**
+ * A stock on the watchlist. [exchange]: where it trades, as Yahoo names it ("XETRA", "NasdaqGS"), to tell SAP.DE from SAP.
+ * [own]: "I own this", listed under Holding; otherwise only watched.
+ */
+data class Favorite(val symbol: String, val name: String, val exchange: String = "", val own: Boolean = false) {
     /** The word headlines use for the company: "Amazon.com, Inc." → "Amazon", "Procter & Gamble Company (The)" → "Procter". */
     val keyword: String
         get() = name.trim().substringBefore(' ').substringBefore(',').removeSuffix(".com").ifEmpty { symbol }
@@ -52,9 +55,22 @@ object News {
     // Bloomberg's own public headline feed: headline and link, the article opens on bloomberg.com. CNBC starts off: one more feed means more rings.
     val DEFAULT_FEEDS = listOf(Feed("FinancialJuice", FINANCIAL_JUICE), Feed("Bloomberg", BLOOMBERG), Feed("CNBC Markets", CNBC, on = false))
 
+    /**
+     * Setup's "German sources", off by default: onvista's market news (dpa-AFX and own analyses), Handelsblatt and FAZ finance.
+     * Tested 25.11.2026: finanzen.net refuses apps (403); Der Aktionär is mostly hype ("100 Prozent möglich"); wallstreet-online has no dates.
+     */
+    val GERMAN_FEEDS = listOf(
+        Feed("onvista", "https://www.onvista.de/news/feed/rss.xml"),
+        Feed("Handelsblatt", "https://www.handelsblatt.com/contentexport/feed/finanzen"),
+        Feed("FAZ Finanzen", "https://www.faz.net/rss/aktuell/finanzen/"),
+    )
+
+    /** Ads some feeds slip between the news ("Black Week: 50 % Rabatt auf alle Abos"). */
+    private val PROMO = Regex("""Rabatt|Black Week""", RegexOption.IGNORE_CASE)
+
     private fun enc(s: String) = URLEncoder.encode(s, "UTF-8")
     fun stockUrl(symbol: String) = "https://query2.finance.yahoo.com/v1/finance/search?q=${enc(symbol)}&newsCount=10&quotesCount=0"
-    fun lookupUrl(query: String) = "https://query2.finance.yahoo.com/v1/finance/search?q=${enc(query)}&newsCount=0&quotesCount=6"
+    fun lookupUrl(query: String) = "https://query2.finance.yahoo.com/v1/finance/search?q=${enc(query)}&newsCount=0&quotesCount=10"
     /** When Yahoo refuses or has nothing: Google News for the company name. */
     fun googleUrl(f: Favorite) = "https://news.google.com/rss/search?q=${enc(f.keyword + " stock")}&hl=en-US&gl=US&ceid=US:en"
 
@@ -80,7 +96,7 @@ object News {
             val title = text("title").removePrefix("FinancialJuice:").removeSuffix(" - $source").trim()
             val link = text("link")
             val time = runCatching { ZonedDateTime.parse(text("pubDate"), DateTimeFormatter.RFC_1123_DATE_TIME).toInstant().toEpochMilli() }.getOrNull()
-            if (title.isEmpty() || !link.startsWith("http") || time == null) return@mapNotNull null
+            if (title.isEmpty() || !link.startsWith("http") || time == null || PROMO.containsMatchIn(title)) return@mapNotNull null
             Item(id = feedName + ":" + text("guid").ifEmpty { link }, title = title, link = link, source = source, time = time, wire = true)
         }
     }

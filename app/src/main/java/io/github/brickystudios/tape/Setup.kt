@@ -54,15 +54,11 @@ import kotlinx.coroutines.launch
 import java.net.URL
 
 @Composable
-fun Setup(now: Long, onFavorites: (List<Favorite>) -> Unit) {
+fun Setup(now: Long, favorites: List<Favorite>, onFavorites: (List<Favorite>) -> Unit, onSearch: () -> Unit) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     val store = remember { Store(ctx) }
-    var favorites by remember { mutableStateOf(store.favorites) }
     var feeds by remember { mutableStateOf(store.feeds) }
-    var query by remember { mutableStateOf("") }
-    var found by remember { mutableStateOf<List<Favorite>>(emptyList()) }
-    var lookupNote by remember { mutableStateOf<String?>(null) }
     var feedUrl by remember { mutableStateOf("") }
     var feedNote by remember { mutableStateOf<Int?>(null) }
     var threshold by remember { mutableIntStateOf(store.threshold) }
@@ -74,6 +70,7 @@ fun Setup(now: Long, onFavorites: (List<Favorite>) -> Unit) {
     var brief by remember { mutableStateOf(store.brief) }
     var tickerNote by remember { mutableStateOf(store.tickerNote) }
     var redditPosts by remember { mutableStateOf(store.redditPosts) }
+    var german by remember { mutableStateOf(store.german) }
     fun saveWords(v: List<String>) { words = v; store.words = v }
     fun addWord() {
         val w = Alerts.cleanWord(word)
@@ -84,20 +81,11 @@ fun Setup(now: Long, onFavorites: (List<Favorite>) -> Unit) {
         }
         if (w != null && wordNote == null) { if (words.none { it.equals(w, true) }) saveWords(words + w); word = "" }
     }
+    val owned = stringResource(R.string.follow_owned)
     val updateNote by Updater.note.collectAsStateWithLifecycle()
     val update by Updater.state.collectAsStateWithLifecycle()
 
-    fun saveFavorites(v: List<Favorite>) { favorites = v; store.favorites = v; onFavorites(v) }
     fun saveFeeds(v: List<Feed>) { feeds = v; store.feeds = v }
-    val offline = stringResource(R.string.offline)
-    val nothing = stringResource(R.string.nothing_found)
-    fun search() = scope.launch {
-        val q = query.trim().takeIf { it.isNotEmpty() } ?: return@launch
-        lookupNote = null
-        val r = Wire.lookup(q)
-        found = r.getOrDefault(emptyList()).filter { f -> favorites.none { it.symbol == f.symbol } }
-        lookupNote = when { r.isFailure -> offline; found.isEmpty() -> nothing.format(q); else -> null }
-    }
     fun addFeed() = scope.launch {
         val url = feedUrl.trim()
         feedNote = Wire.probeFeed(url)
@@ -114,24 +102,22 @@ fun Setup(now: Long, onFavorites: (List<Favorite>) -> Unit) {
     val status = remember(now) { store.status }
     val unrestricted = remember(now) { ctx.getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(ctx.packageName) }
 
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 32.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = BAR_ROOM)) {
         item { Title(stringResource(R.string.tab_setup), stringResource(R.string.setup_sub), clock = false) }
 
         item { Section(R.string.section_stocks) }
-        item { Field(query, { query = it }, R.string.add_hint, R.string.search, KeyboardType.Text) { search() } }
-        lookupNote?.let { item { Note(it) } }
-        items(found, key = { "found:" + it.symbol }) { f ->
-            Line(f.symbol, listOf(f.name, f.exchange).filter { it.isNotEmpty() }.joinToString("  ·  "), action = stringResource(R.string.add), accent = true) {
-                saveFavorites(favorites + f)
-                found = emptyList()
-                query = ""
-                scope.launch { Wire.check(ctx, stocksNow = true) }
-            }
+        // adding happens in search (the glass button beside the tabs); here the list to tidy up
+        item {
+            Text(
+                "+  " + stringResource(R.string.add_stock),
+                Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(onClick = onSearch).padding(vertical = 16.dp),
+                fontSize = 16.sp, color = Amber,
+            )
+            HorizontalDivider(color = Hairline)
         }
         items(favorites, key = { "fav:" + it.symbol }) { f ->
-            Line(f.symbol, listOf(f.name, f.exchange).filter { it.isNotEmpty() }.joinToString("  ·  "), action = stringResource(R.string.remove)) {
-                saveFavorites(favorites - f)
-                store.primed = store.primed - "stock:${f.symbol}" - "google:${f.symbol}" - "sa:${f.symbol}" - "price:${f.symbol}" // re-adding it later fills quietly again
+            Line(f.symbol, listOfNotNull(f.name, owned.takeIf { f.own }).filter { it.isNotEmpty() }.joinToString("  ·  "), action = stringResource(R.string.remove)) {
+                onFavorites(store.follow(f, null))
             }
         }
 
@@ -194,6 +180,13 @@ fun Setup(now: Long, onFavorites: (List<Favorite>) -> Unit) {
         }
 
         item { Section(R.string.section_feeds) }
+        item {
+            Toggle(R.string.german, stringResource(R.string.german_note), german) {
+                german = it
+                store.german = it
+                if (it) scope.launch { Wire.check(ctx) } // the first answer of each fills the list quietly
+            }
+        }
         items(feeds, key = { "feed:" + it.url }) { f ->
             Row(Modifier.fillMaxWidth().heightIn(min = 56.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
@@ -236,7 +229,7 @@ fun Setup(now: Long, onFavorites: (List<Favorite>) -> Unit) {
 
         item { Section(R.string.section_sources) }
         // one line per feed plus Yahoo news, Seeking Alpha, Google News and prices; a failing source shows its error here
-        val names = feeds.filter { it.on }.map { it.name } + listOf("Yahoo Finance news", News.SEEKING_ALPHA, "Google News", Wire.PRICES)
+        val names = feeds.filter { it.on }.map { it.name } + (if (german) News.GERMAN_FEEDS.map { it.name } else emptyList()) + listOf("Yahoo Finance news", News.SEEKING_ALPHA, "Google News", Wire.PRICES)
         items(names.filter { it in status }, key = { "status:" + it }) { name ->
             val c = status.getValue(name)
             val time = clock(ctx, c.time, now)

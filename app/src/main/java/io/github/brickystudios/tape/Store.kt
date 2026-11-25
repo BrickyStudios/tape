@@ -11,8 +11,24 @@ class Store(ctx: Context) {
     private val p = ctx.getSharedPreferences("tape", Context.MODE_PRIVATE)
 
     var favorites: List<Favorite>
-        get() = array("favorites").map { Favorite(it.getString("s"), it.optString("n"), it.optString("x")) }
-        set(v) = put("favorites", v.map { JSONObject().put("s", it.symbol).put("n", it.name).put("x", it.exchange) })
+        get() = array("favorites").map { Favorite(it.getString("s"), it.optString("n"), it.optString("x"), it.optBoolean("o")) }
+        set(v) = put("favorites", v.map { JSONObject().put("s", it.symbol).put("n", it.name).put("x", it.exchange).put("o", it.own) })
+
+    /**
+     * Watch a stock ([own] false), mark it as owned (true) or take it off the list (null); a stock keeps its place.
+     * Taking one off forgets its first answers, so adding it again fills quietly instead of ringing.
+     */
+    fun follow(f: Favorite, own: Boolean?): List<Favorite> {
+        val old = favorites
+        val v = when {
+            own == null -> old.filter { it.symbol != f.symbol }
+            old.any { it.symbol == f.symbol } -> old.map { if (it.symbol == f.symbol) it.copy(own = own) else it }
+            else -> old + f.copy(own = own)
+        }
+        if (own == null) primed = primed - "stock:${f.symbol}" - "google:${f.symbol}" - "sa:${f.symbol}" - "price:${f.symbol}"
+        favorites = v
+        return v
+    }
 
     var feeds: List<Feed>
         get() = if (!p.contains("feeds")) News.DEFAULT_FEEDS
@@ -137,6 +153,13 @@ class Store(ctx: Context) {
         get() = array("posts").map { Post(it.getString("i"), it.getString("u"), it.getString("ti"), it.optString("f"), it.optInt("sc"), it.optInt("c"), it.getLong("t")) }
         set(v) = put("posts", v.map { JSONObject().put("i", it.id).put("u", it.sub).put("ti", it.title).put("f", it.flair).put("sc", it.score).put("c", it.comments).put("t", it.time) })
 
+    /** Each watched stock's year of daily closes, boiled down for the buying chances. */
+    var levels: Map<String, Levels>
+        get() = runCatching { JSONObject(p.getString("levels", "{}")!!) }.getOrDefault(JSONObject()).let { o ->
+            o.keys().asSequence().associateWith { k -> o.getJSONObject(k).let { Levels(if (it.has("a")) it.getDouble("a") else null, it.getDouble("lo"), it.getDouble("hi"), if (it.has("r")) it.getDouble("r") else null) } }
+        }
+        set(v) = p.edit().putString("levels", JSONObject(v.mapValues { (_, l) -> JSONObject().put("lo", l.low).put("hi", l.high).also { o -> l.avg200?.let { o.put("a", it) }; l.rsi?.let { o.put("r", it) } } }).toString()).apply()
+
     var cot: List<Cot>
         get() = array("cot").map { Cot(it.getString("d"), it.getLong("m"), it.getLong("f")) }
         set(v) = put("cot", v.map { JSONObject().put("d", it.date).put("m", it.managers).put("f", it.funds) })
@@ -144,6 +167,11 @@ class Store(ctx: Context) {
     /** When each slow source was last asked: calendar and CFTC every few hours, Reddit every 30 minutes. */
     fun last(source: String) = p.getLong("last:$source", 0)
     fun last(source: String, time: Long) = p.edit().putLong("last:$source", time).apply()
+
+    /** Setup's "German sources", see [News.GERMAN_FEEDS]. */
+    var german: Boolean
+        get() = p.getBoolean("german", false)
+        set(v) = p.edit().putBoolean("german", v).apply()
 
     /** Setup's "Reddit posts": off by default, the posts come from a volunteer-run archive. */
     var redditPosts: Boolean

@@ -44,6 +44,30 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.os.Build
+import android.provider.Settings
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.graphicsLayer
+import com.kyant.backdrop.backdrops.LayerBackdrop
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
+import com.kyant.backdrop.drawBackdrop
+import com.kyant.backdrop.effects.blur
+import com.kyant.backdrop.effects.lens
+import com.kyant.backdrop.effects.vibrancy
+import com.kyant.shapes.Capsule
+import com.kyant.shapes.RoundedRectangle
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -61,6 +85,8 @@ val Hairline = Text1.copy(alpha = 0.08f)
 /** Price change only. Leaf green (OKLCH hue 137), clear of Nurvo's teal; 8.7:1 and 4.7:1 on Ink. */
 val Up = Color(0xFF7CC45A)
 val Down = Color(0xFFE5484D)
+/** Tint of the floating glass: Raised, see-through where Android can blur behind it. */
+val Glass = Color(0xCC232325)
 
 val AppType = Typography().run { copy(bodyLarge = bodyLarge.copy(letterSpacing = 0.sp)) }
 val TitleStyle = TextStyle(fontSize = 28.sp, lineHeight = 36.sp, fontWeight = FontWeight.Medium, color = Text1)
@@ -190,12 +216,12 @@ fun priceText(q: Quote, plain: Boolean) = if (plain) Market.number(q.price) else
  * TalkBack reads it as one sentence: "NVIDIA, 165,05 $, ▲ +31,5 %".
  */
 @Composable
-fun QuoteRow(title: String, subtitle: String, quote: Quote?, points: List<Double>?, plain: Boolean, mono: Boolean, stale: String?, ext: Ext? = null, hint: String? = null, onClick: (() -> Unit)?) {
+fun QuoteRow(title: String, subtitle: String, quote: Quote?, points: List<Double>?, plain: Boolean, mono: Boolean, stale: String?, ext: Ext? = null, hint: String? = null, chance: String? = null, onClick: (() -> Unit)?) {
     val change = quote?.change
     val after = ext?.takeIf { quote != null && it.time > quote.time }
     val price = quote?.let { priceText(it, plain) } ?: "—"
     val extLabel = after?.let { stringResource(if (it.pre) R.string.ext_pre else R.string.ext_after) + " " + percent(it.change) }.orEmpty()
-    val spoken = "$subtitle $title, $price, " + (change?.let { (if (it >= 0) "▲ " else "▼ ") + percent(it) } ?: "") + " $extLabel"
+    val spoken = "$subtitle $title, $price, " + (change?.let { (if (it >= 0) "▲ " else "▼ ") + percent(it) } ?: "") + " $extLabel " + listOfNotNull(chance, hint).joinToString(", ")
     Column(
         Modifier.fillMaxWidth()
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
@@ -216,9 +242,16 @@ fun QuoteRow(title: String, subtitle: String, quote: Quote?, points: List<Double
                 if (stale != null) Text(stale, style = MetaStyle.copy(color = Text3), maxLines = 1) else ChangeTag(change)
             }
         }
-        // under the whole row, so it does not push the day line aside; the earnings date on the left
-        if (after != null || hint != null) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(hint.orEmpty(), Modifier.weight(1f), style = MetaStyle.copy(color = Text1), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        // under the whole row, so it does not push the day line aside: a buying chance in amber, the earnings date, then after hours on the right
+        if (after != null || hint != null || chance != null) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                buildAnnotatedString {
+                    if (chance != null) withStyle(SpanStyle(color = Amber)) { append(chance) }
+                    if (chance != null && hint != null) append("  ·  ")
+                    if (hint != null) append(hint)
+                },
+                Modifier.weight(1f), style = MetaStyle.copy(color = Text1), maxLines = 1, overflow = TextOverflow.Ellipsis,
+            )
             if (after != null) ExtLine(after)
         }
     }
@@ -300,4 +333,58 @@ fun ExtLine(ext: Ext) {
         style = MetaStyle.copy(color = Text3).merge(Tnum),
         maxLines = 1,
     )
+}
+
+/** iOS-style continuous corners: the curve eases into the straight edge instead of meeting it at a kink. */
+val Card: Shape = RoundedRectangle(20.dp)
+val Pill: Shape = Capsule()
+
+/** What scrolls behind the floating chrome, for the glass to blur and bend. */
+val LocalBackdrop = staticCompositionLocalOf<LayerBackdrop?> { null }
+
+/**
+ * Liquid Glass (github.com/Kyant0/AndroidLiquidGlass, Apache-2.0), as in Freehub: blur from Android 12, refraction at the rim
+ * from Android 13. Older phones only get the tint, nearly solid there to keep text readable.
+ * Only for chrome that floats over content (tab bar, search, back, update); glass on glass loses all legibility.
+ */
+@Composable
+fun Modifier.glass(shape: Shape = Pill): Modifier {
+    val tint = if (Build.VERSION.SDK_INT >= 31) Glass else Raised.copy(alpha = 0.96f)
+    val backdrop = LocalBackdrop.current ?: return background(tint, shape)
+    return drawBackdrop(
+        backdrop = backdrop,
+        shape = { shape },
+        effects = {
+            vibrancy()
+            blur(20.dp.toPx())
+            lens(12.dp.toPx(), 24.dp.toPx())
+        },
+        onDrawSurface = { drawRect(tint) },
+    )
+}
+
+/** [content] draws into a layer; [chrome] floats over it as glass that blurs whatever scrolls behind. */
+@Composable
+fun Glassed(modifier: Modifier = Modifier, chrome: @Composable BoxScope.() -> Unit, content: @Composable BoxScope.() -> Unit) {
+    val backdrop = rememberLayerBackdrop()
+    Box(modifier) {
+        Box(Modifier.fillMaxSize().layerBackdrop(backdrop), content = content)
+        CompositionLocalProvider(LocalBackdrop provides backdrop) { chrome() }
+    }
+}
+
+/** "Remove animations" in Android's settings: nothing slides, scales or fades. */
+@Composable
+fun reducedMotion(): Boolean {
+    val c = LocalContext.current
+    return remember { Settings.Global.getFloat(c.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f }
+}
+
+/** A press sinks the control a little and lets it spring back: the same 100/160 ms as Freehub. */
+@Composable
+fun Modifier.pressable(source: MutableInteractionSource): Modifier {
+    if (reducedMotion()) return this
+    val pressed by source.collectIsPressedAsState()
+    val s by animateFloatAsState(if (pressed) 0.96f else 1f, tween(if (pressed) 100 else 160), label = "press")
+    return graphicsLayer { scaleX = s; scaleY = s }
 }

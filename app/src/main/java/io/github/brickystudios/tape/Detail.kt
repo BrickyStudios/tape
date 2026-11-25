@@ -27,7 +27,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.produceState
+import androidx.compose.ui.platform.LocalView
+import android.view.HapticFeedbackConstants
+import kotlin.math.abs
+import kotlin.math.roundToInt
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -59,15 +65,29 @@ import java.util.Date
  * what the latest event means, and every headline about it.
  */
 @Composable
-fun Detail(symbol: String, name: String, quote: Quote?, ext: Ext?, earning: Earning?, mention: Mention?, watched: Boolean, plain: Boolean, news: List<Item>, now: Long, threshold: Int, onBack: () -> Unit) {
+fun Detail(
+    symbol: String, name: String, quote: Quote?, ext: Ext?, earning: Earning?, mention: Mention?, follow: Favorite?, plain: Boolean,
+    news: List<Item>, levels: Levels?, now: Long, threshold: Int, onFollow: (Favorite, Boolean?) -> Unit, onBack: () -> Unit,
+) {
     BackHandler(onBack = onBack)
     val ctx = LocalContext.current
+    val watched = follow != null
     var range by remember(symbol) { mutableStateOf(Range.D1) }
     var chart by remember(symbol, range) { mutableStateOf<Result<Chart>?>(null) }
     var attempt by remember { mutableStateOf(0) }
     var scrub by remember(symbol, range) { mutableStateOf<Int?>(null) }
     LaunchedEffect(symbol, range, attempt) { chart = Wire.chart(symbol, range) }
     val c = chart?.getOrNull()
+    // a stock off the list has no stored price: today's chart gives price and yesterday's close (cached, so no second request)
+    val dayChart by produceState<Chart?>(null, symbol) { if (quote == null) value = Wire.chart(symbol, Range.D1).getOrNull() }
+    val quote = quote ?: dayChart?.let { Quote(symbol, it.price, it.previousClose, it.times.lastOrNull() ?: now, it.zone, it.currency) }
+    val title = name.ifEmpty { dayChart?.name ?: c?.name.orEmpty() }
+    // off the list: news and levels are asked when the page opens; on the list they come with every check
+    val asked by produceState<List<Item>?>(null, symbol, title) { if (!watched && !plain && title.isNotEmpty()) value = Wire.newsFor(Favorite(symbol, title)) }
+    val news = if (watched) news else asked.orEmpty()
+    val lv by produceState<Result<Levels?>?>(levels?.let { Result.success(it) }, symbol, levels) {
+        if (levels == null && !plain) value = Result.success(Wire.levels(symbol))
+    }
     val currency = quote?.currency ?: c?.currency.orEmpty()
     fun fmt(v: Double) = if (plain || currency.isEmpty()) Market.number(v) else Market.money(v, currency)
 
@@ -76,15 +96,16 @@ fun Detail(symbol: String, name: String, quote: Quote?, ext: Ext?, earning: Earn
     val after = ext?.takeIf { quote != null && it.time > quote.time }
     val row = MARKET_NAMES[symbol]
 
-    Column(Modifier.fillMaxSize()) {
-        Row(Modifier.fillMaxWidth().height(56.dp), verticalAlignment = Alignment.CenterVertically) {
+    Glassed(Modifier.fillMaxSize(), chrome = {
+        Row(Modifier.padding(start = 12.dp, top = 8.dp).glass().padding(end = 20.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back), tint = Text1) }
             // market rows by their name ("DAX"), not Yahoo's code ("^GDAXI")
             Text(row?.let { stringResource(it.first) } ?: symbol, fontSize = 16.sp, fontFamily = if (row == null) FontFamily.Monospace else FontFamily.Default, color = Text1)
         }
-        LazyColumn(Modifier.fillMaxSize().padding(horizontal = 20.dp), contentPadding = PaddingValues(bottom = 32.dp)) {
+    }) {
+        LazyColumn(Modifier.fillMaxSize().padding(horizontal = 20.dp), contentPadding = PaddingValues(top = 72.dp, bottom = 32.dp)) {
             item {
-                Text(row?.let { stringResource(it.second) } ?: (c?.name ?: name).ifEmpty { symbol }, fontSize = 16.sp, color = Text1, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(row?.let { stringResource(it.second) } ?: (c?.name ?: title).ifEmpty { symbol }, fontSize = 16.sp, color = Text1, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text(listOf(c?.exchange.orEmpty(), currency, status).filter { it.isNotEmpty() }.joinToString("  ·  "), style = MetaStyle)
                 Spacer(Modifier.height(16.dp))
                 // the finger on the chart replaces price and change with that moment's value
@@ -115,6 +136,14 @@ fun Detail(symbol: String, name: String, quote: Quote?, ext: Ext?, earning: Earn
                     }
                 }
                 Spacer(Modifier.height(16.dp))
+                if (!plain) {
+                    val me = follow ?: Favorite(symbol, title.ifEmpty { symbol }, c?.exchange.orEmpty())
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FollowButton(R.string.follow_watch, R.string.follow_watching, watched, Modifier.weight(1f)) { onFollow(me, if (watched) null else false) }
+                        FollowButton(R.string.follow_own, R.string.follow_owned, follow?.own == true, Modifier.weight(1f)) { onFollow(me, follow?.own != true) }
+                    }
+                    Spacer(Modifier.height(16.dp))
+                }
             }
             item {
                 Box(Modifier.fillMaxWidth().height(220.dp)) {
@@ -163,14 +192,15 @@ fun Detail(symbol: String, name: String, quote: Quote?, ext: Ext?, earning: Earn
                 Row { Figure(R.string.day_range, day, Modifier.weight(1f)); Figure(R.string.previous_close, prev, Modifier.weight(1f)) }
                 Row { Figure(R.string.year_range, year, Modifier.weight(1f)); Figure(R.string.volume, volume, Modifier.weight(1f)) }
             }
+            if (!plain) item { ChanceBlock(lv, quote?.price, ::fmt) }
             if (earning != null || mention != null) item {
                 Column(Modifier.padding(top = 16.dp)) {
                     if (earning != null) Figure(R.string.next_earnings, nextEarning(ctx, earning), Modifier)
                     if (mention != null) Figure(R.string.reddit_title, stringResource(R.string.reddit_count, java.text.NumberFormat.getIntegerInstance().format(mention.mentions)) + "  ·  " + mentionTrend(mention), Modifier)
                 }
             }
-            // indices and stocks off the watchlist have no news search and no price alert
-            if (watched) item {
+            // indices have no news search; stocks off the list ask for theirs when the page opens
+            if (!plain) item {
                 Text(stringResource(R.string.assessment), style = SectionStyle, modifier = Modifier.padding(top = 32.dp, bottom = 8.dp))
                 if (event == null) {
                     Text(stringResource(R.string.no_event, symbol), style = MetaStyle, modifier = Modifier.padding(vertical = 8.dp))
@@ -194,11 +224,80 @@ fun Detail(symbol: String, name: String, quote: Quote?, ext: Ext?, earning: Earn
                     }
                 }
             }
-            if (watched) item { Text(stringResource(R.string.news), style = SectionStyle, modifier = Modifier.padding(top = 32.dp, bottom = 8.dp)) }
-            if (watched && news.isEmpty()) item { Text(stringResource(R.string.no_news, symbol), style = MetaStyle, modifier = Modifier.padding(vertical = 8.dp)) }
+            if (!plain) item { Text(stringResource(R.string.news), style = SectionStyle, modifier = Modifier.padding(top = 32.dp, bottom = 8.dp)) }
+            if (!plain && news.isEmpty()) item {
+                Text(stringResource(if (!watched && asked == null) R.string.news_loading else R.string.no_news, symbol), style = MetaStyle, modifier = Modifier.padding(vertical = 8.dp))
+            }
             items(news.take(30), key = { "n:" + it.id }) { HeadlineRow(it, now) }
             if (watched) item { Text(stringResource(R.string.alarm_at, threshold), style = MetaStyle.copy(color = Text3), modifier = Modifier.padding(top = 24.dp)) }
         }
+    }
+}
+
+/** "Watch" / "I own this": quiet until on, then amber like a selection; a tick in the hand confirms. */
+@Composable
+private fun FollowButton(off: Int, on: Int, active: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    val view = LocalView.current
+    val source = remember { MutableInteractionSource() }
+    Box(
+        modifier.heightIn(min = 48.dp).pressable(source).clip(Pill).background(if (active) Amber.copy(alpha = 0.16f) else Raised)
+            .clickable(source, indication = null) {
+                view.performHapticFeedback(if (android.os.Build.VERSION.SDK_INT >= 30) HapticFeedbackConstants.CONFIRM else HapticFeedbackConstants.CLOCK_TICK)
+                onClick()
+            },
+        contentAlignment = Alignment.Center,
+    ) { Text(if (active) "✓  " + stringResource(on) else stringResource(off), fontSize = 14.sp, fontWeight = FontWeight.Medium, color = if (active) Amber else Text1) }
+}
+
+/** "4,2 %" without sign: the words around it say the direction. */
+private fun pct(v: Double) = String.format(java.util.Locale.getDefault(), "%.1f\u202F%%", abs(v))
+
+/** The four rules of thumb against today's price, each with its number, and how many of them hold. */
+@Composable
+private fun ChanceBlock(levels: Result<Levels?>?, price: Double?, fmt: (Double) -> String) {
+    Text(stringResource(R.string.chance_title), style = SectionStyle, modifier = Modifier.padding(top = 32.dp, bottom = 8.dp))
+    val l = levels?.getOrNull()
+    if (l == null || price == null) {
+        Text(stringResource(if (levels == null || price == null) R.string.chance_loading else R.string.chance_none), style = MetaStyle, modifier = Modifier.padding(vertical = 8.dp))
+        return
+    }
+    val signs = Chance.signs(l, price)
+    Text(stringResource(R.string.chance_count, signs.size), fontSize = 16.sp, color = if (signs.isEmpty()) Text1 else Amber)
+    // the level as the value, how far the price sits from it on the line below, so neither wraps on a phone
+    @Composable
+    fun side(base: Double) = Chance.distance(price, base).let { d -> stringResource(if (d < 0) R.string.chance_below else R.string.chance_above, pct(d)) }
+    val rsi = l.rsi?.let { r -> stringResource(if (r < Chance.OVERSOLD) R.string.rsi_oversold else if (r > 70) R.string.rsi_overbought else R.string.rsi_neutral) }
+    Row {
+        ChanceFigure(R.string.chance_avg200, l.avg200?.let(fmt) ?: "—", l.avg200?.let { side(it) }, Sign.AVG200 in signs, Modifier.weight(1f))
+        ChanceFigure(R.string.chance_low, fmt(l.low), side(l.low), Sign.LOW in signs, Modifier.weight(1f))
+    }
+    Row {
+        ChanceFigure(R.string.chance_high, "−" + pct(Chance.distance(price, l.high).coerceAtMost(0.0)), fmt(l.high), Sign.DRAWDOWN in signs, Modifier.weight(1f))
+        ChanceFigure(R.string.chance_rsi, l.rsi?.roundToInt()?.toString() ?: "—", rsi, Sign.OVERSOLD in signs, Modifier.weight(1f))
+    }
+    Text(stringResource(R.string.chance_rules), style = MetaStyle.copy(color = Text3), modifier = Modifier.padding(top = 8.dp))
+}
+
+/** A figure whose rule holds gets an amber tick before its label. */
+@Composable
+private fun ChanceFigure(label: Int, value: String, note: String?, met: Boolean, modifier: Modifier) {
+    Column(modifier.padding(vertical = 8.dp)) {
+        Text((if (met) "✓ " else "") + stringResource(label), style = MetaStyle.copy(color = if (met) Amber else Text2))
+        Text(value, fontSize = 16.sp, color = Text1, style = Tnum, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        if (note != null) Text(note, style = MetaStyle.merge(Tnum), maxLines = 1)
+    }
+}
+
+/** The first rule that holds, for the line under a stock's row: "Near its 52-week low". Null when none holds. */
+@Composable
+fun chanceHint(l: Levels?, q: Quote?): String? {
+    if (l == null || q == null) return null
+    return when (Chance.signs(l, q.price).firstOrNull()) {
+        Sign.LOW -> stringResource(R.string.hint_low)
+        Sign.AVG200 -> stringResource(R.string.hint_avg_at)
+        Sign.OVERSOLD -> stringResource(R.string.hint_oversold, l.rsi!!.roundToInt())
+        Sign.DRAWDOWN -> stringResource(R.string.hint_drawdown, pct(Chance.distance(q.price, l.high)))
+        null -> null
     }
 }
 

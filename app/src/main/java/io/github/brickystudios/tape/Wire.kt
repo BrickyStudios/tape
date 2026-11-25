@@ -50,6 +50,7 @@ object Wire {
     val mentions = MutableStateFlow<List<Mention>>(emptyList())
     val posts = MutableStateFlow<List<Post>>(emptyList())
     val cot = MutableStateFlow<List<Cot>>(emptyList())
+    val levels = MutableStateFlow<Map<String, Levels>>(emptyMap())
 
     /** The app is on screen: market rows every check, otherwise every 5 minutes (they never ring, and 17 rows cost data). */
     @Volatile var foreground = false
@@ -70,6 +71,7 @@ object Wire {
         mentions.value = s.mentions
         posts.value = s.posts
         cot.value = s.cot
+        levels.value = s.levels
         lastCheck.value = s.lastCheck
     }
 
@@ -99,7 +101,7 @@ object Wire {
         val now = System.currentTimeMillis()
         val favorites = store.favorites
         val stocks = stocksNow || now - store.lastStocks >= News.STOCK_INTERVAL
-        val feeds = store.feeds.filter { it.on }.map { f ->
+        val feeds = (store.feeds.filter { it.on } + if (store.german) News.GERMAN_FEEDS else emptyList()).map { f ->
             async {
                 val r = runCatching { News.parseRss(get(f.url), f.name) }
                 Answer(f.url, r.getOrNull(), listOf(f.name to r.exceptionOrNull()?.let(::reason)))
@@ -190,6 +192,7 @@ object Wire {
     const val APEWISDOM = "ApeWisdom (Reddit)"
     const val ARCTIC = "Arctic Shift (Reddit)"
     const val CFTC = "CFTC positioning"
+    const val HISTORY = "Yahoo Finance history"
 
     /**
      * The sources that change slowly, each on its own clock: calendar and earnings every 3 hours (5 minutes after a pull or a new stock),
@@ -210,6 +213,11 @@ object Wire {
             val mine = if (favorites.isEmpty()) emptyList() else Agenda.parseEarnings(get(Agenda.stocksUrl(favorites.map { it.symbol }, today, Agenda.dayStart(now, zone, 60))))
             (mine + popular).distinctBy { it.symbol to it.time }.sortedBy { it.time }
         }) { store.earnings = it; earnings.value = it }
+        // a stock without levels yet (just added) is asked within 5 minutes; Yahoo may simply have no year of history for it
+        val missing = favorites.any { it.symbol !in store.levels }
+        if (favorites.isNotEmpty() && due(HISTORY, if (missing) 5 * MINUTE else Chance.INTERVAL)) jobs += fetch(HISTORY, {
+            favorites.map { it.symbol }.chunked(20).fold(emptyMap<String, Levels>()) { m, c -> m + Chance.parse(get(Chance.url(c))) }
+        }) { got -> val v = store.levels.filterKeys { k -> favorites.any { it.symbol == k } } + got; store.levels = v; levels.value = v }
         if (due(CFTC, Positioning.INTERVAL)) jobs += fetch(CFTC, { Positioning.parse(get(Positioning.URL)) }) { if (it.isNotEmpty()) { store.cot = it; cot.value = it } }
         if (due(APEWISDOM, Reddit.INTERVAL)) jobs += fetch(APEWISDOM, { Reddit.parseMentions(get(Reddit.MENTIONS_URL)) }) { if (it.isNotEmpty()) { store.mentions = it; mentions.value = it } }
         if (store.redditPosts && due(ARCTIC, Reddit.INTERVAL)) jobs += fetch(ARCTIC, {
@@ -244,6 +252,21 @@ object Wire {
         charts[key]?.takeIf { System.currentTimeMillis() - it.first < 5 * MINUTE }?.let { return@withContext Result.success(it.second) }
         runCatching { Market.parseChart(get(Market.chartUrl(symbol, range))) ?: throw IOException("no chart data") }
             .onSuccess { charts[key] = System.currentTimeMillis() to it }
+    }
+
+    private val history = ConcurrentHashMap<String, Pair<Long, Levels?>>()
+
+    /** Levels for a stock off the list, at most one request per stock and hour. */
+    suspend fun levels(symbol: String): Levels? = withContext(Dispatchers.IO) {
+        history[symbol]?.takeIf { System.currentTimeMillis() - it.first < HOUR }?.let { return@withContext it.second }
+        runCatching { Chance.parse(get(Chance.url(listOf(symbol))))[symbol] }.getOrNull()
+            .also { history[symbol] = System.currentTimeMillis() to it }
+    }
+
+    /** Headlines about a stock off the list, asked when its page opens: the same sources and the same rule (the headline names it) as for the list. */
+    suspend fun newsFor(f: Favorite): List<Item> = withContext(Dispatchers.IO) {
+        val answers = listOfNotNull(stockNews(f), if ('.' in f.symbol) null else seekingAlpha(f))
+        News.merge(emptyList(), answers.flatMap { it.items.orEmpty() }.map { News.tag(it, listOf(f)) }.filter { it.tickers.isNotEmpty() })
     }
 
     suspend fun lookup(query: String): Result<List<Favorite>> = withContext(Dispatchers.IO) {
